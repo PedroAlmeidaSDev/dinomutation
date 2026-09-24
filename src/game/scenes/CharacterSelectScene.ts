@@ -3,6 +3,7 @@ import { DINOSAURS, DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { loadSave } from '../core/Save';
 import { formatTime } from '../../utils/math';
+import { prefersTouch } from '../ui/TouchControls';
 import { COLORS, FONT, FONT_BOLD, button, hex, text } from '../ui/theme';
 
 const CARD_W = 360;
@@ -83,7 +84,7 @@ export class CharacterSelectScene extends Phaser.Scene {
       }
     });
 
-    const ab = text(this, 0, -CARD_H / 2 + 370, `SPACE · ${d.abilityName.toUpperCase()}`, 15, COLORS.accentText, true).setOrigin(0.5);
+    const ab = text(this, 0, -CARD_H / 2 + 370, `${prefersTouch() ? 'HABILIDADE' : 'SPACE'} · ${d.abilityName.toUpperCase()}`, 15, COLORS.accentText, true).setOrigin(0.5);
     const abDesc = this.add.text(0, -CARD_H / 2 + 392, d.abilityDescription, {
       fontFamily: FONT, fontSize: '14px', color: '#d8d0b8', align: 'center', wordWrap: { width: CARD_W - 40 },
     }).setOrigin(0.5, 0);

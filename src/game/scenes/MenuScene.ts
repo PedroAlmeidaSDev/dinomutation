@@ -3,6 +3,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { loadSave } from '../core/Save';
 import { formatTime } from '../../utils/math';
 import { COLORS, FONT_BOLD, button, text } from '../ui/theme';
+import { prefersTouch } from '../ui/TouchControls';
 
 export class MenuScene extends Phaser.Scene {
   private walkers: { img: Phaser.GameObjects.Image; speed: number }[] = [];
@@ -38,8 +39,9 @@ export class MenuScene extends Phaser.Scene {
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
     text(this, GAME_WIDTH / 2, 420, info, 17, COLORS.muted).setOrigin(0.5);
 
-    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 70,
-      'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 16, '#d8d0b8').setOrigin(0.5);
+    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 70, prefersTouch()
+      ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
+      : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 16, '#d8d0b8').setOrigin(0.5);
 
     this.input.keyboard?.once('keydown-ENTER', () => this.go());
     this.input.keyboard?.once('keydown-SPACE', () => this.go());

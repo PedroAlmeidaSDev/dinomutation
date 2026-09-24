@@ -18,6 +18,8 @@ export function createGame(parent: string): Phaser.Game {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
+    // Joystick + ability button held at the same time on touch screens.
+    input: { activePointers: 3 },
     render: { antialias: true, pixelArt: false },
     fps: { target: 60 },
     scene: [BootScene, MenuScene, CharacterSelectScene, RunScene, HUDScene, GameOverScene, VictoryScene],

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { HUD } from '../ui/HUD';
 import { PauseMenu } from '../ui/PauseMenu';
+import { TouchControls } from '../ui/TouchControls';
 import { UpgradeSelection, type SelectionOptions } from '../ui/UpgradeSelection';
 import type { RunScene } from './RunScene';
 
@@ -10,6 +11,7 @@ import type { RunScene } from './RunScene';
  */
 export class HUDScene extends Phaser.Scene {
   hud!: HUD;
+  touch!: TouchControls;
   private selection: UpgradeSelection | null = null;
   private pause: PauseMenu | null = null;
 
@@ -20,12 +22,21 @@ export class HUDScene extends Phaser.Scene {
   create(data: { runScene: RunScene }): void {
     this.selection = null;
     this.pause = null;
-    this.hud = new HUD(this, data.runScene.run);
-    data.runScene.attachHud(this);
+    const runScene = data.runScene;
+    this.hud = new HUD(this, runScene.run);
+    this.touch = new TouchControls(this, {
+      abilityZone: () => this.hud.ability,
+      isBlocked: () => runScene.inputBlocked,
+      onAbility: () => runScene.useAbility(),
+      onPause: () => runScene.togglePause(),
+      onShow: () => this.hud.useTouchLayout(),
+    });
+    runScene.attachHud(this);
   }
 
   update(_t: number, delta: number): void {
     this.hud.update(delta / 1000);
+    this.touch.update();
   }
 
   showSelection(opts: SelectionOptions): void {

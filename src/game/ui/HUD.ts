@@ -23,6 +23,9 @@ export class HUD {
   private upgradeSignature = '';
   private abilityWasReady = true;
   private abilityPulse = 0;
+  private touchLayout = false;
+  /** Ability button position; moved bottom-right and enlarged in touch layout. */
+  readonly ability = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 70, r: 30 };
 
   constructor(private readonly scene: Phaser.Scene, private readonly run: Run) {
     this.g = scene.add.graphics();
@@ -39,6 +42,17 @@ export class HUD {
       this.debugText = text(scene, GAME_WIDTH - 12, GAME_HEIGHT - 12,
         'DEBUG  1:+Nível  2:Invencível  3:Elite  4:Boss  5:Matar todos  6:+60s', 12, '#8aff8a').setOrigin(1, 1);
     }
+  }
+
+  /** Big thumb-sized ability button in the bottom-right corner. */
+  useTouchLayout(): void {
+    if (this.touchLayout) return;
+    this.touchLayout = true;
+    Object.assign(this.ability, { x: GAME_WIDTH - 130, y: GAME_HEIGHT - 140, r: 64 });
+    this.abilityText.setVisible(false);
+    this.abilityKey.setText(this.run.abilities.ability.name.toUpperCase()).setFontSize(17)
+      .setPosition(this.ability.x, this.ability.y);
+    this.debugText?.setY(GAME_HEIGHT - 250);
   }
 
   update(dt: number): void {
@@ -90,9 +104,7 @@ export class HUD {
 
     // Ability cooldown
     const ab = run.abilities;
-    const cx = GAME_WIDTH / 2;
-    const cy = GAME_HEIGHT - 70;
-    const r = 30;
+    const { x: cx, y: cy, r } = this.ability;
     if (ab.ready && !this.abilityWasReady) this.abilityPulse = 1;
     this.abilityWasReady = ab.ready;
     this.abilityPulse = Math.max(0, this.abilityPulse - dt * 2);
@@ -110,8 +122,10 @@ export class HUD {
       g.strokeCircle(cx, cy, r + 6 + (1 - this.abilityPulse) * 18);
     }
     this.abilityKey.setColor(ab.ready ? '#1a1408' : '#ffffff').setStroke(ab.ready ? '#ffe0a0' : '#000000', 3);
-    g.fillStyle(0x000000, 0.55);
-    g.fillRoundedRect(cx - 90, GAME_HEIGHT - 36, 180, 20, 6);
+    if (!this.touchLayout) {
+      g.fillStyle(0x000000, 0.55);
+      g.fillRoundedRect(cx - 90, GAME_HEIGHT - 36, 180, 20, 6);
+    }
 
     this.drawUpgrades();
   }

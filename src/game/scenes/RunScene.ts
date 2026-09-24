@@ -4,6 +4,7 @@ import { BALANCE } from '../../data/balance';
 import type { DinoId } from '../../data/dinosaurs';
 import { DEBUG } from '../config';
 import { Run } from '../core/Run';
+import { prefersTouch } from '../ui/TouchControls';
 import type { HUDScene } from './HUDScene';
 
 export interface RunSceneData {
@@ -51,9 +52,7 @@ export class RunScene extends Phaser.Scene {
     const kb = this.input.keyboard!;
     this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT') as RunScene['keys'];
     kb.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
-    kb.on('keydown-SPACE', () => {
-      if (!this.simPaused) this.run.abilities.tryActivate();
-    });
+    kb.on('keydown-SPACE', () => this.useAbility());
     kb.on('keydown-ESC', () => this.togglePause());
     if (DEBUG) this.setupDebug(kb);
 
@@ -66,7 +65,10 @@ export class RunScene extends Phaser.Scene {
       this.input.keyboard?.removeAllListeners();
     });
 
-    this.time.delayedCall(600, () => this.run.bus.emit('banner', { text: 'SOBREVIVA E EVOLUA', sub: 'WASD para mover · SPACE habilidade · ESC pausa', color: 0xffe0a0 }));
+    const hint = prefersTouch()
+      ? 'Arraste o dedo para mover · Botão à direita: habilidade'
+      : 'WASD para mover · SPACE habilidade · ESC pausa';
+    this.time.delayedCall(600, () => this.run.bus.emit('banner', { text: 'SOBREVIVA E EVOLUA', sub: hint, color: 0xffe0a0 }));
   }
 
   attachHud(hud: HUDScene): void {
@@ -75,6 +77,15 @@ export class RunScene extends Phaser.Scene {
 
   private get simPaused(): boolean {
     return this.paused || this.selecting;
+  }
+
+  /** True while gameplay input should be ignored (paused, picking an upgrade, run over). */
+  get inputBlocked(): boolean {
+    return this.simPaused || !!this.run.outcome;
+  }
+
+  useAbility(): void {
+    if (!this.simPaused) this.run.abilities.tryActivate();
   }
 
   private setSimFrozen(frozen: boolean): void {
@@ -89,7 +100,7 @@ export class RunScene extends Phaser.Scene {
     }
   }
 
-  private togglePause(): void {
+  togglePause(): void {
     if (this.selecting || this.run.outcome || !this.hud) return;
     this.paused = !this.paused;
     this.setSimFrozen(this.paused);
@@ -120,6 +131,11 @@ export class RunScene extends Phaser.Scene {
     if (k.D.isDown || k.RIGHT.isDown) ix += 1;
     if (k.W.isDown || k.UP.isDown) iy -= 1;
     if (k.S.isDown || k.DOWN.isDown) iy += 1;
+    const touch = this.hud?.touch;
+    if (touch) {
+      ix += touch.x;
+      iy += touch.y;
+    }
 
     this.run.update(realDt * this.timeScale, ix, iy);
 
