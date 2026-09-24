@@ -80,6 +80,22 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
       roarRadius: 320, roarWindup: 0.85, roarDamage: 24, roarForce: 900,
       stompRadius: 95, stompWindup: 1.0, stompDamage: 42, stompCount: 3,
       summonCount: 8, attackCooldown: 1.0,
+      /** HP ratios where phase 2 (Fúria) and phase 3 (Predador Supremo) begin. */
+      phase2At: 0.66, phase3At: 0.33, ccResist: 0.9,
+      /** Combo bite: 2 bites (3 in phase 3), re-aimed each time. */
+      comboWindup: 0.45,
+      /** Phase 2+: 360° tail sweep when the player lingers behind. */
+      tailRadius: 200, tailWindup: 0.5, tailDamage: 34, tailBehindTime: 1.0,
+      /** Phase 2+: charges come in threes, with a short re-aim between them. */
+      chargeChain: 3, chargeReaim: 0.55,
+      /** Charging into a rock/wall: stunned and vulnerable. */
+      stunTime: 2, vulnerableMult: 1.5,
+      /** Phase 2+: the roar slows the player. */
+      roarSlow: 2.5,
+      /** Phase 3: falling rocks around the player. */
+      quakeDuration: 4, quakeInterval: 0.35, quakeRadius: 85, quakeWindup: 0.9, quakeDamage: 30,
+      /** Phase 3: the stomp becomes expanding shockwave rings. */
+      shockSpeed: 420, shockWidth: 40, shockMaxRadius: 720, shockCount: 2, shockGap: 0.6,
       /** Share of the player's damage reduction ignored by telegraphed attacks. */
       pierce: 0.35,
       /** Seconds into the fight before the boss enrages (damage ×enrageDamage, windups ×enrageWindup). */

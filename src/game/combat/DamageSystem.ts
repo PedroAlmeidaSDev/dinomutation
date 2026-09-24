@@ -129,6 +129,7 @@ export class DamageSystem {
     if (crit) amount *= calc.critDamage;
     // Target modifiers: armor.
     amount *= BALANCE.combat.enemyArmorConstant / (BALANCE.combat.enemyArmorConstant + target.armor);
+    amount *= target.damageTakenMult;
     if (calc.execute && !target.isBossLike) amount = Math.max(amount, target.hp);
     amount = Math.max(1, Math.round(amount));
 

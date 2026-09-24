@@ -25,6 +25,12 @@ const ASSUME = {
   pickupEfficiency: 0.95,
   /** Fração dos ataques telegrafados do chefe que um jogador médio esquiva. */
   bossDodge: 0.6,
+  /**
+   * Fração do dano teórico (100% de acertos) que realmente acerta quem fica colado no chefe:
+   * círculos aleatórios, pedras fora do alvo e iFrames. Calibrado com `npm run test:boss`
+   * (~17,8/s medido ÷ ~27/s teórico).
+   */
+  bossTankHitRate: 0.66,
   /** Compys/raptors invocados pelo chefe mortos por segundo durante a luta (afeta on-kill). */
   bossFightKillsPerSec: 0.8,
   /** Inimigos sangrando por perto durante a luta do chefe (Sangue Quente). */
@@ -57,6 +63,8 @@ const RULES = {
   bossEnrageMult: gp.enrageDamage ?? 1,
   /** Fração da redução de dano do jogador ignorada pelos ataques pesados do chefe. */
   bossPierce: gp.pierce ?? 0,
+  /** Chefe em 3 fases (antes: 2). */
+  bossPhases: (gp.phase3At ? 3 : 2) as 2 | 3,
 };
 
 /** Valores anteriores à Etapa 1 (commit 2ba080f), para comparar antes × depois. */
@@ -77,6 +85,7 @@ function applyOriginal(): void {
   RULES.bossEnrageAt = Infinity;
   RULES.bossEnrageMult = 1;
   RULES.bossPierce = 0;
+  RULES.bossPhases = 2;
   DINOSAURS.trex.attack.maxTargets = 1;
 
   const alpha = ENEMIES.carnoAlpha;
@@ -382,14 +391,45 @@ function sustain(b: Build, killsPerSec: number, hitsPerSec: number): number {
 }
 
 /** Dano/s do chefe se todos os ataques acertarem. */
-function bossRawDps(phase: 1 | 2): number {
+/** Ritmo por fase — espelha TEMPO em Giganotosaurus.ts. */
+const BOSS_TEMPO = {
+  1: { windup: 1, cooldown: 1 },
+  2: { windup: 0.85, cooldown: 0.75 },
+  3: { windup: 0.75, cooldown: 0.6 },
+} as const;
+
+/** Dano/s do chefe se todos os ataques acertarem (jogador colado nele). */
+function bossRawDps(phase: 1 | 2 | 3): number {
   const p = ENEMIES.giganotosaurus.params;
-  // Mix de ataques de perto (bite 5, roar 2, stomp 3, charge 1) sem repetir o último.
-  const avg = (5 * p.biteDamage + 2 * p.roarDamage + 3 * p.stompDamage + 1 * (p.chargeDamage + 18)) / 11;
-  const windup = (5 * p.biteWindup + 2 * p.roarWindup + 3 * p.stompWindup + 1 * (p.chargeWindup + p.chargeTime)) / 11;
-  const wm = phase === 2 ? 0.78 : 1;
-  const cycle = windup * wm + 0.7 + p.attackCooldown * (phase === 2 ? 0.65 : 1);
-  return avg / cycle;
+  if (RULES.bossPhases === 2) {
+    // Chefe antigo: 2 fases (fúria a 50%), sem combo nem terremoto.
+    const avg = (5 * p.biteDamage + 2 * p.roarDamage + 3 * p.stompDamage + 1 * (p.chargeDamage + 18)) / 11;
+    const windup = (5 * p.biteWindup + 2 * p.roarWindup + 3 * p.stompWindup + 1 * (p.chargeWindup + p.chargeTime)) / 11;
+    const two = phase >= 2;
+    return avg / (windup * (two ? 0.78 : 1) + 0.7 + p.attackCooldown * (two ? 0.65 : 1));
+  }
+  const tempo = BOSS_TEMPO[phase];
+  const bites = phase === 3 ? 3 : 2;
+  const chain = phase >= 2 ? p.chargeChain : 1;
+  // [peso, dano por uso, duração (wind-ups + execução)]
+  const mix: [number, number, number][] = [
+    [3, p.biteDamage, p.biteWindup * tempo.windup],
+    [phase === 1 ? 2 : 3, p.biteDamage * bites, p.comboWindup * tempo.windup * bites],
+    [2, p.roarDamage, p.roarWindup * tempo.windup],
+    [3, p.stompDamage, p.stompWindup * tempo.windup],
+    [1, (p.chargeDamage + 18) * chain, (p.chargeWindup * tempo.windup + p.chargeTime) + (chain - 1) * (p.chargeReaim * tempo.windup + p.chargeTime)],
+  ];
+  // Terremoto: ~35% das pedras caem em cima do jogador; iFrames limitam a 1 acerto a cada ~0,35s.
+  if (phase === 3) mix.push([2.5, (p.quakeDuration / p.quakeInterval) * 0.35 * p.quakeDamage, 0.9 + p.quakeDuration]);
+  const W = mix.reduce((s, m) => s + m[0], 0);
+  const dmg = mix.reduce((s, m) => s + m[0] * m[1], 0) / W;
+  const dur = mix.reduce((s, m) => s + m[0] * m[2], 0) / W;
+  return dmg / (dur + 0.7 + p.attackCooldown * tempo.cooldown);
+}
+
+/** Média ponderada pelo tempo em cada fase (cada fase = 1/3 da vida). */
+function bossAvgRawDps(): number {
+  return RULES.bossPhases === 2 ? (bossRawDps(1) + bossRawDps(2)) / 2 : (bossRawDps(1) + bossRawDps(2) + bossRawDps(3)) / 3;
 }
 
 // ─────────────────────────── diretor / economia ───────────────────────────
@@ -574,7 +614,7 @@ function simulateRun(dinoId: DinoId, picker: Picker): RunResult {
   const bossTtk = G.hp / bossDps;
   const eliteTtk = A.hp / (singleTargetDps(b, { hp: A.hp, armor: A.armor, boss: true }, 1, 3).dps * ASSUME.bossUptime);
   const sus = sustain(b, rewardKps, st.hitsPerSec * ASSUME.bossUptime);
-  const raw = (bossRawDps(1) + bossRawDps(2)) / 2;
+  const raw = bossAvgRawDps() * ASSUME.bossTankHitRate;
   const bossRed = def.reduction * (1 - RULES.bossPierce);
   const tank = raw * (1 - bossRed);
   const dodge = raw * (1 - ASSUME.bossDodge) * (1 - bossRed);
@@ -615,7 +655,7 @@ function main() {
   const out: Record<string, unknown> = { runs, original, assume: ASSUME, rules: RULES, results: {} };
 
   console.log(`\n=== DinoMutation — simulação de balanceamento${original ? ' [ANTES DA ETAPA 1]' : ' [ATUAL]'} (${runs} runs por dino/estilo) ===`);
-  console.log(`Chefe: ${ENEMIES.giganotosaurus.hp} HP, armadura ${ENEMIES.giganotosaurus.armor}. DPS bruto do chefe: fase1 ${f(bossRawDps(1), 1)}/s, fase2 ${f(bossRawDps(2), 1)}/s`);
+  console.log(`Chefe: ${ENEMIES.giganotosaurus.hp} HP, armadura ${ENEMIES.giganotosaurus.armor}. DPS bruto do chefe: ${([1, 2, 3] as const).slice(0, RULES.bossPhases).map((ph) => `fase${ph} ${f(bossRawDps(ph), 1)}/s`).join(', ')}`);
 
   for (const picker of ['smart', 'random'] as Picker[]) {
     for (const dino of DINO_ORDER) {

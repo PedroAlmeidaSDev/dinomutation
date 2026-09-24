@@ -184,7 +184,7 @@ Implementação:
 
 O objetivo é que a luta passe a exigir **leitura de padrões e posicionamento**, e não só vencer uma corrida de números.
 
-### 5.1 Giganotosaurus: redesign em 3 fases
+### 5.1 Giganotosaurus: redesign em 3 fases · ✅ implementado
 
 | Fase | HP | Novidades |
 |---|---|---|
@@ -200,7 +200,32 @@ Mecânicas de suporte:
 - **Ataques pesados perfuram 35% da redução** (§4, Etapa 1).
 - **Barra de vida segmentada** no HUD (marcas em 66% e 33%) e banner a cada fase.
 
-Implementação: `Giganotosaurus.ts` já é uma máquina de estados (`walk / windup / charging / recover / rage`). Basta acrescentar `phase: 1|2|3`, os ataques `comboBite`, `tailSweep`, `quake` e `tripleCharge`, e o estado `stunnedVulnerable`. Os telegraphs necessários (`cone`, `line`, `circle`) já existem em `Telegraphs.ts`. Para a onda de choque em expansão, criar `Telegraphs.ring(x, y, rMin→rMax, dur)`.
+**Como ficou no código** (`Giganotosaurus.ts`, parâmetros em `ENEMIES.giganotosaurus.params`):
+
+- Estados `walk / windup / charging / recover / transition / stunned / quake`. O ritmo de cada fase está na tabela `TEMPO` (velocidade 1 / 1,2 / 1,35; wind-up ×1 / 0,85 / 0,75; cooldown ×1 / 0,75 / 0,6).
+- Fases em `phase2At: 0.66` e `phase3At: 0.33`. A barra de vida do HUD marca os dois limiares.
+- A **investida tripla** (`chargeChain: 3`, re-mira de 0,55 s) começa na fase 2.
+- A **varrida de cauda** (raio 200, 34 de dano) dispara após 1 s atrás do chefe, só na fase 2+.
+- O **rugido aplica Lento** a partir da fase 2.
+- **Na fase 3:**
+  - o **terremoto** derruba 1 pedra a cada 0,35 s durante 4 s (35% miram em cima do jogador);
+  - o **pisão** vira **2 ondas de choque em expansão** (só a borda do anel machuca, então dá para atravessar com dash);
+  - a **invocação** traz 1 Carnotaurus + 6 Compys.
+- **Janela de punição:** bater em rocha ou parede durante a investida deixa o chefe **atordoado 2 s** com `damageTakenMult = 1.5` (novo campo em `Enemy`, aplicado no `DamageSystem`).
+- **Resistência a controle** de 90%, e 100% durante investida, combo, transição e terremoto.
+- **Ainda não feito:** o "anel de rochas nas bordas" que encolheria a arena na fase 3 (fica para depois do playtest).
+
+**Teste automatizado:** `npm run test:boss` roda o `GiganotosaurusBehavior` e o `Enemy` reais em Node, com um jogador-robô (colado, orbitando ou atrás do chefe), 10 lutas por cenário. Ele verifica:
+- as transições de fase;
+- o tamanho dos combos (2 e 3 mordidas) e das investidas (1 e 3);
+- que o terremoto e o Carnotaurus só aparecem na fase 3;
+- a varrida de cauda só na fase 2+ e o Lento só na fase 2+;
+- o atordoamento na parede, com +50% de dano;
+- a fúria aos 150 s.
+
+Estável em 10 de 10 execuções. Também mede o dano bruto real em quem fica colado (~17,8/s), que calibra `ASSUME.bossTankHitRate` no simulador.
+
+**Resultado simulado (calibrado, build boa):** a luta dura ~46–60 s e 94–100% vencem esquivando. Mas **21–41% ainda vencem sem esquivar**, sobretudo o Triceratops (60% de redução + 451 HP), acima da meta de <25%. Os próximos ajustes candidatos, a decidir com playtest: `pierce` 0,35 → 0,5, ou dano do terremoto/cauda.
 
 ### 5.2 Carnotaurus Alfa
 
@@ -281,7 +306,7 @@ Cada **Era** dura 180 s:
 |---|---|---|---|
 | 1 | ✅ **Etapa 1**: números + Hemofagia só em golpe direto + teto da Voracidade + `noRewards` nos lacaios + teto de vel. de ataque | S | — |
 | 2 | Telemetria de debug: log por minuto (nível, DPS real, dano recebido, cura, vivos) em `?debug`, para calibrar o simulador com playtests | S | — |
-| 3 | Giganotosaurus em 3 fases + janela de punição + fúria + perfuração | M | 1 |
+| 3 | ✅ Giganotosaurus em 3 fases + janela de punição + fúria + perfuração | M | 1 |
 | 4 | Carnotaurus Alfa (frenesi, investida guiada, fuga) | S | 1 |
 | 5 | Níveis de ameaça (Casual/Normal/Difícil/Pesadelo) + save | M | 1 |
 | 6 | Inimigos campeões + mini-chefe das 3:00 | M | 1 |
@@ -310,6 +335,7 @@ Cada **Era** dura 180 s:
 npm run balance                      # jogo atual (com a Etapa 1), 300 runs por dino/estilo
 npm run balance -- 1000              # mais runs
 npm run balance:antes                # valores anteriores à Etapa 1, para comparar
+npm run test:boss                    # teste headless do Giganotosaurus (3 fases)
 npm run balance -- 400 --json out.json   # exporta a timeline completa em JSON
 ```
 
