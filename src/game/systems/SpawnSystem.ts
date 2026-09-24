@@ -77,12 +77,14 @@ export class SpawnSystem {
     }
   }
 
-  /** Spawn around a point (boss summons). */
-  spawnAround(id: EnemyId, x: number, y: number, count: number, radius: number): void {
+  /** Spawn around a point (boss summons). Summons give no rewards by default. */
+  spawnAround(id: EnemyId, x: number, y: number, count: number, radius: number, noRewards = true): void {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + Math.random() * 0.3;
       const e = this.spawn(id, x + Math.cos(a) * radius, y + Math.sin(a) * radius);
-      if (e) this.ctx.fx.dust(e.x, e.y, 4);
+      if (!e) continue;
+      e.noRewards = noRewards;
+      this.ctx.fx.dust(e.x, e.y, 4);
     }
   }
 

@@ -37,8 +37,9 @@ export class RunDirector {
   /** Enemy stat multipliers growing over time. */
   scaling(): EnemyScaling {
     const m = this.minutes;
+    const S = BALANCE.enemyScaling;
     return {
-      hpMult: 1 + BALANCE.enemyScaling.hpPerMinute * m,
+      hpMult: 1 + S.hpPerMinute * m + S.hpPerMinuteSq * m * m,
       damageMult: 1 + BALANCE.enemyScaling.damagePerMinute * m,
     };
   }

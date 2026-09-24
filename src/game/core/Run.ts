@@ -180,7 +180,7 @@ export class Run implements RunContext {
       this.fx.shake(0.012, 400);
       this.hitstop(0.1);
       this.bus.emit('banner', { text: 'ELITE DERROTADA!', sub: 'Colete o mutagênico', color: 0xd070ff });
-    } else {
+    } else if (!enemy.noRewards) {
       this.pickups.spawnDNA(enemy.x, enemy.y, enemy.def.xp);
       if (Math.random() < BALANCE.drops.meatChance) this.pickups.spawn('meat', enemy.x, enemy.y);
       else if (Math.random() < BALANCE.drops.magnetChance) this.pickups.spawn('magnet', enemy.x, enemy.y);

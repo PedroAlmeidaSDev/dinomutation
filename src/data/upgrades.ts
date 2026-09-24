@@ -49,10 +49,10 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'hemofagia', name: 'Hemofagia', rarity: 'rare', maxLevel: 3,
     tags: ['bleed', 'heal'],
-    description: 'Causar dano a inimigos sangrando recupera 1.2 de vida (recarga interna de 0.2s).',
+    description: 'Golpes em inimigos sangrando recuperam 0.8 de vida (recarga interna de 0.2s).',
     requires: { ownedTags: ['bleed'] },
     effects: [
-      { type: 'trigger', trigger: 'onHit', effect: 'healOnStatusHit', params: { status: 'bleed', amount: 1.2, icd: 0.2 } },
+      { type: 'trigger', trigger: 'onHit', effect: 'healOnStatusHit', params: { status: 'bleed', amount: 0.8, icd: 0.2 } },
     ],
   },
   {
@@ -296,8 +296,8 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'voracidade', name: 'Voracidade', rarity: 'common', maxLevel: 3,
     tags: ['heal', 'kill'],
-    description: 'Cada abate recupera 1 de vida.',
-    effects: [{ type: 'trigger', trigger: 'onKill', effect: 'healFlat', params: { amount: 1 } }],
+    description: 'Cada abate recupera 0.5 de vida (máx. 2 de vida por segundo).',
+    effects: [{ type: 'trigger', trigger: 'onKill', effect: 'healFlat', params: { amount: 0.5, maxPerSec: 2 } }],
   },
   {
     id: 'musculos_densos', name: 'Músculos Densos', rarity: 'common', maxLevel: 5,
