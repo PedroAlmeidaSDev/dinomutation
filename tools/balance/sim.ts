@@ -7,6 +7,8 @@
  * resultado exato de uma run.
  *
  * Uso:  node --experimental-strip-types tools/balance/sim.ts [runs] [--antes] [--json saida.json]
+ *       [--meta nenhum|inicial|medio|max]   perfil fixo de meta-progressão (loja + passivas)
+ *       [--carreira [carreiras]]            joga runs seguidas acumulando Fósseis/Maestria desde zero
  */
 import { BALANCE, xpToNext, type Rarity } from '../../src/data/balance.ts';
 import { DIRECTOR_CONFIG } from '../../src/data/director.ts';
@@ -15,6 +17,7 @@ import { DINOSAURS, DINO_ORDER, type DinoDef, type DinoId } from '../../src/data
 import { UPGRADES, UPGRADE_BY_ID } from '../../src/data/upgrades.ts';
 import { STAT_DEFAULTS, type StatKey } from '../../src/game/components/StatsComponent.ts';
 import type { UpgradeDefinition } from '../../src/game/upgrades/UpgradeTypes.ts';
+import { META_ECONOMY, SHOP, fossilsForRun, loadoutFor, masteryLevel, masteryXpForRun, type MetaBonus } from '../../src/data/meta.ts';
 
 // ─────────────────────────── premissas do modelo ───────────────────────────
 const ASSUME = {
@@ -105,13 +108,22 @@ function applyOriginal(): void {
   if (bossPhase) Object.assign(bossPhase, { interval: 1.4, batch: [2, 4], maxAlive: 45 });
 }
 
+/** Aplica BALANCE.bossScaling direto nos dados do chefe (o jogo aplica na hora do spawn). */
+function applyBossScaling(hpMult: number, dmgMult: number): void {
+  const g = ENEMIES.giganotosaurus;
+  g.hp = Math.round(g.hp * hpMult);
+  for (const k of Object.keys(g.params)) if (k.endsWith('Damage')) g.params[k] = Math.round(g.params[k] * dmgMult);
+  g.contactDamage = Math.round(g.contactDamage * dmgMult);
+}
+
 const effApsMult = (m: number) => (m <= RULES.apsSoftCap ? m : RULES.apsSoftCap + (m - RULES.apsSoftCap) * RULES.apsSoftCapRate);
 
 const ABILITY_CD: Record<string, number> = { roar: 10, pounce: 3.5, charge: 6.5 };
 const GENERIC_TAGS = new Set(['physical', 'utility', 'health', 'heal', 'kill', 'ability', 'multi', 'aoe', 'mutation']);
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
 
-type Picker = 'smart' | 'random';
+/** mixed: cada escolha tem 50% de ser a melhor e 50% de ser aleatória (proxy de jogador médio). */
+type Picker = 'smart' | 'mixed' | 'random';
 
 // ─────────────────────────── build ───────────────────────────
 class Build {
@@ -119,12 +131,17 @@ class Build {
   order: string[] = [];
   primaryTag: string | null = null;
   readonly dino: DinoDef;
-  constructor(dino: DinoDef) {
+  /** Meta-progressão: níveis de loja (stats) e passivas desbloqueadas. */
+  readonly meta: MetaBonus[];
+  readonly passives: Set<string>;
+  constructor(dino: DinoDef, meta: MetaBonus[] = []) {
     this.dino = dino;
+    this.meta = meta;
+    this.passives = new Set(meta.filter((m) => m.id.startsWith('pas_')).map((m) => m.id));
   }
 
   clone(): Build {
-    const b = new Build(this.dino);
+    const b = new Build(this.dino, this.meta);
     b.owned = new Map(this.owned);
     b.order = [...this.order];
     b.primaryTag = this.primaryTag;
@@ -182,6 +199,12 @@ class Build {
       for (const e of def.effects) {
         if (e.type !== 'stat' || e.stat !== key) continue;
         if (e.mode === 'add') add += e.value * pw; else mult += e.value * pw;
+      }
+    }
+    for (const m of this.meta) {
+      for (const e of m.effects) {
+        if (e.type !== 'stat' || e.stat !== key) continue;
+        if (e.mode === 'add') add += e.value * m.level; else mult += e.value * m.level;
       }
     }
     const base = (this.dino.stats as Record<string, number>)[key] ?? STAT_DEFAULTS[key] ?? 0;
@@ -309,6 +332,8 @@ function singleTargetDps(b: Build, t: Target, killsPerSec: number, bleedingNearb
   // Execução: bônus só nos últimos 30% de vida → média ponderada por HP.
   let execMult = 1;
   if (b.has('execucao')) { const eb = 0.35 * pw('execucao'); execMult = 1 / (0.7 + 0.3 / (1 + eb)); }
+  // Passiva Rei Tirano: +20% abaixo de 25% de vida.
+  if (b.passives.has('pas_trex_tirano')) execMult *= 1 / (0.75 + 0.25 / 1.2);
   // Sangue Quente: multiplicador sobre o stat de dano.
   let sq = 0;
   if (b.has('sangue_quente')) sq = Math.min(0.6 * pw('sangue_quente'), bleedingNearby * 0.04 * pw('sangue_quente'));
@@ -316,6 +341,7 @@ function singleTargetDps(b: Build, t: Target, killsPerSec: number, bleedingNearb
 
   let critChance = b.stat('critChance');
   if (b.has('instinto_assassino')) critChance += 0.5 * 0.2 * pw('instinto_assassino');
+  if (b.passives.has('pas_trex_presas')) critChance += 0.5 * 0.08;
   const cm = critAvg(critChance, b.stat('critDamage'));
 
   const dmg = x.damage * dmgMult;
@@ -361,6 +387,11 @@ function singleTargetDps(b: Build, t: Target, killsPerSec: number, bleedingNearb
   // Espinhos: ~0.35 golpes corpo a corpo/s do chefe (esquivando).
   if (b.has('espinhos')) dps += 0.35 * (10 + Math.max(0, b.stat('armor')) * 0.8) * pw('espinhos') * af;
 
+  // Passivas de maestria.
+  if (b.passives.has('pas_raptor_alfa')) dps += (dmg * 1.2 * b.stat('summonDamage') * (1 + b.stat('dmg_claw' as StatKey)) * cm * af) / 9;
+  if (b.passives.has('pas_tri_espinhos')) dps += 0.35 * (6 + Math.max(0, b.stat('armor')) * 0.3) * af;
+  if (b.passives.has('pas_tri_tremor')) dps += (dmg * 1.2 * cm * af) / cd;
+
   return { dps, hitsPerSec: swings, hitDamage: hit * cm, critMult: cm };
 }
 
@@ -371,7 +402,9 @@ function defense(b: Build) {
   const armorRed = armor >= 0 ? 1 - BALANCE.combat.armorConstant / (BALANCE.combat.armorConstant + armor) : armor / BALANCE.combat.armorConstant;
   // Placas Ósseas: ativo praticamente o tempo todo em combate pesado.
   const placas = b.has('placas_osseas') ? 0.12 * b.power('placas_osseas') : 0;
-  const reduction = Math.min(BALANCE.combat.maxDamageReduction, armorRed + placas);
+  // Passiva Couraça Viva: +8% por 2s ao sofrer dano → ativa quase sempre em combate.
+  const couraca = b.passives.has('pas_tri_couraca') ? 0.08 : 0;
+  const reduction = Math.min(BALANCE.combat.maxDamageReduction, armorRed + placas + couraca);
   const maxHp = b.stat('maxHealth');
   return { armor, reduction, maxHp, ehp: maxHp / (1 - reduction) };
 }
@@ -465,7 +498,7 @@ function killCapacity(b: Build, t: number, alive: number): number {
   const mix = mixStats(phase.pool, t);
   const x = derive(b);
   const { pw } = x;
-  const execTh = b.has('execucao') ? Math.min(0.9, 0.06 * pw('execucao')) : 0;
+  const execTh = Math.max(b.has('execucao') ? Math.min(0.9, 0.06 * pw('execucao')) : 0, b.passives.has('pas_trex_tirano') ? 0.03 : 0);
   const st = singleTargetDps(b, { hp: mix.hp, armor: mix.armor, boss: false }, 3, 5);
   const swings = st.hitsPerSec * ASSUME.meleeUptime;
 
@@ -491,6 +524,8 @@ function killCapacity(b: Build, t: number, alive: number): number {
     const hits = pack ? count * (6 / 0.45) / 6 : count / 5;
     kills += hits / hitsToKill(x.damage * (pack ? 1.2 : 1.5) * b.stat('summonDamage'));
   }
+  if (b.passives.has('pas_tri_tremor')) kills += Math.min(12, alive / 6) / hitsToKill(x.damage * 1.2 * st.critMult) / cd;
+  if (b.passives.has('pas_raptor_alfa')) kills += 1 / 9 / hitsToKill(x.damage * 1.2 * b.stat('summonDamage'));
   if (b.has('colosso')) kills += Math.min(6, alive / 20) / 0.35 / hitsToKill(x.damage * 0.4 + mix.hp * 0.04);
   if (b.has('tempestade_de_sangue') && (b.has('dentes_serrilhados') || b.has('garras_serrilhadas'))) kills *= 1.35;
   return kills;
@@ -506,6 +541,8 @@ interface Snapshot {
 interface RunResult {
   dino: DinoId; picker: Picker; snaps: Snapshot[]; final: Combat; eliteKilledAt: number | null;
   upgrades: string[]; primaryTag: string | null; bossWin: 'facetank' | 'dodge' | 'lose'; bossFightTime: number;
+  /** Para a carreira: abates totais e segundos sobrevividos (derrota = morte durante o chefe, esquivando). */
+  totalKills: number; elapsed: number;
 }
 
 function scoreBuild(b: Build, t: number): number {
@@ -517,7 +554,7 @@ function scoreBuild(b: Build, t: number): number {
 }
 
 function choose(b: Build, options: UpgradeDefinition[], picker: Picker, t: number): UpgradeDefinition {
-  if (picker === 'random') return options[Math.floor(Math.random() * options.length)];
+  if (picker === 'random' || (picker === 'mixed' && Math.random() < 0.5)) return options[Math.floor(Math.random() * options.length)];
   let best = options[0];
   let bestS = -Infinity;
   for (const o of options) {
@@ -529,8 +566,9 @@ function choose(b: Build, options: UpgradeDefinition[], picker: Picker, t: numbe
   return best;
 }
 
-function simulateRun(dinoId: DinoId, picker: Picker): RunResult {
-  const b = new Build(DINOSAURS[dinoId]);
+function simulateRun(dinoId: DinoId, picker: Picker, meta: MetaBonus[] = []): RunResult {
+  const b = new Build(DINOSAURS[dinoId], meta);
+  let totalKills = 0;
   const cfg = DIRECTOR_CONFIG;
   let level = 1, xp = 0, next = xpToNext(1);
   let alive = 0;
@@ -580,6 +618,7 @@ function simulateRun(dinoId: DinoId, picker: Picker): RunResult {
     const kills = Math.min(alive, cap);
     alive -= kills;
     lastKps = kills;
+    totalKills += kills;
     xp += kills * mix.xp * b.stat('xpGain') * ASSUME.pickupEfficiency;
     while (xp >= next) { xp -= next; level++; next = xpToNext(level); levelUp(t); }
 
@@ -628,6 +667,7 @@ function simulateRun(dinoId: DinoId, picker: Picker): RunResult {
     return after > 0 ? RULES.bossEnrageAt + hpLeft / after : Infinity;
   };
   const bossWin = survive(tank) >= bossTtk ? 'facetank' : survive(dodge) >= bossTtk ? 'dodge' : 'lose';
+  const elapsed = cfg.bossTime + Math.min(bossTtk, survive(dodge));
   const bite = ENEMIES.giganotosaurus.params.biteDamage * (1 - bossRed);
 
   const final: Combat = {
@@ -635,7 +675,7 @@ function simulateRun(dinoId: DinoId, picker: Picker): RunResult {
     bossTtk, eliteTtk, maxHp: def.maxHp, reduction: def.reduction, ehp: def.ehp,
     sustainBoss: sus, bossIncomingTank: tank, bossIncomingDodge: dodge, hitsToDieBite: def.maxHp / bite,
   };
-  return { dino: dinoId, picker, snaps, final, eliteKilledAt, upgrades: b.order.map((id) => `${id}:${b.level(id)}`), primaryTag: b.primaryTag, bossWin, bossFightTime: bossTtk };
+  return { dino: dinoId, picker, snaps, final, eliteKilledAt, upgrades: b.order.map((id) => `${id}:${b.level(id)}`), primaryTag: b.primaryTag, bossWin, bossFightTime: bossTtk, totalKills, elapsed };
 }
 
 // ─────────────────────────── estatísticas / saída ───────────────────────────
@@ -646,23 +686,130 @@ function pct(xs: number[], p: number) {
 const med = (xs: number[]) => pct(xs, 0.5);
 const f = (n: number, d = 0) => (Number.isFinite(n) ? n.toFixed(d) : '∞');
 
+// ─────────────────────────── meta-progressão ───────────────────────────
+/** XP de maestria total para estar exatamente no nível `level`. */
+function xpForMastery(level: number): number {
+  let xp = 0;
+  for (let l = 1; l < level; l++) xp += META_ECONOMY.mastery.xpPerLevel * l;
+  return xp;
+}
+
+/** Perfis fixos: [nível de cada item da loja, nível de maestria]. */
+const META_PROFILES: Record<string, [number, number]> = {
+  nenhum: [0, 1], inicial: [1, 3], medio: [2, 6], max: [3, 10],
+};
+
+function profileLoadout(dino: DinoId, name: string): MetaBonus[] {
+  const [items, mastery] = META_PROFILES[name] ?? META_PROFILES.nenhum;
+  const shop = Object.fromEntries(SHOP[dino].map((i) => [i.id, items]));
+  return loadoutFor(dino, shop, xpForMastery(mastery));
+}
+
+/**
+ * Carreira: começa do zero e joga `maxRuns` runs seguidas com o mesmo dino, ganhando as recompensas
+ * reais de cada run e comprando sempre o item mais barato disponível na loja.
+ * Otimista: derrotas contam como morte durante o chefe (quem morre antes ganha menos).
+ */
+function simulateCareer(dino: DinoId, picker: Picker, maxRuns: number) {
+  let fossils = 0;
+  let masteryXp = 0;
+  let spent = 0;
+  const shop: Record<string, number> = {};
+  let firstWin: number | null = null;
+  let playTime = 0;
+  let timeToFirstWin = 0;
+  let masteryAtWin = 1;
+  let spentAtWin = 0;
+  const wins: boolean[] = [];
+  for (let run = 1; run <= maxRuns; run++) {
+    const r = simulateRun(dino, picker, loadoutFor(dino, shop, masteryXp));
+    const win = r.bossWin !== 'lose';
+    wins.push(win);
+    playTime += r.elapsed;
+    if (win && firstWin === null) {
+      firstWin = run;
+      timeToFirstWin = playTime;
+      masteryAtWin = masteryLevel(masteryXp);
+      spentAtWin = spent;
+    }
+    const reward = { elapsedTime: r.elapsed, kills: r.totalKills, eliteKilled: r.eliteKilledAt !== null, bossKilled: win };
+    fossils += fossilsForRun(reward);
+    masteryXp += masteryXpForRun(reward);
+    // Compra gananciosa: item mais barato já liberado, até acabar o dinheiro.
+    for (;;) {
+      const lvlM = masteryLevel(masteryXp);
+      const buyable = SHOP[dino]
+        .map((i) => ({ i, lvl: shop[i.id] ?? 0 }))
+        .filter(({ i, lvl }) => lvl < i.costs.length && lvlM >= i.mastery[lvl] && fossils >= i.costs[lvl])
+        .sort((a, b) => a.i.costs[a.lvl] - b.i.costs[b.lvl]);
+      if (!buyable.length) break;
+      const { i, lvl } = buyable[0];
+      fossils -= i.costs[lvl];
+      spent += i.costs[lvl];
+      shop[i.id] = lvl + 1;
+    }
+  }
+  return { firstWin, timeToFirstWin, masteryAtWin, spentAtWin, wins };
+}
+
+function careerMain(careers: number, maxRuns: number): void {
+  console.log(`\n=== Carreira: ${careers} carreiras × até ${maxRuns} runs por dino, começando sem nenhuma melhoria ===`);
+  console.log('(vitória = vence o chefe esquivando 60% dos ataques; derrotas rendem como se morressem no chefe → estimativa otimista)');
+  const buckets: [number, number][] = [[1, 3], [4, 6], [7, 10], [11, 15], [16, 25], [26, maxRuns]];
+  const label: Record<Picker, string> = {
+    smart: 'experiente (escolhas ótimas)', mixed: 'médio (50% ótimas / 50% aleatórias)', random: 'iniciante (escolhas aleatórias)',
+  };
+  for (const picker of ['smart', 'mixed', 'random'] as Picker[]) {
+    console.log(`\n── jogador ${label[picker]} ──`);
+    console.log(`dino           1ª vitória p25/p50/p75  nunca vence  horas até 1ª   maestria/gasto na 1ª   % de vitórias por faixa de runs`);
+    for (const dino of DINO_ORDER) {
+      const cs = Array.from({ length: careers }, () => simulateCareer(dino, picker, maxRuns));
+      const won = cs.filter((c) => c.firstWin !== null);
+      const firsts = cs.map((c) => c.firstWin ?? Infinity);
+      const q = (p: number) => f(pct(firsts, p));
+      const hours = won.length ? f(med(won.map((c) => c.timeToFirstWin)) / 3600, 1) : '—';
+      const atWin = won.length ? `M${f(med(won.map((c) => c.masteryAtWin)))} / ${f(med(won.map((c) => c.spentAtWin)))}` : '—';
+      const rates = buckets.map(([a, z]) => {
+        const xs = cs.flatMap((c) => c.wins.slice(a - 1, z));
+        return `${a}-${z}: ${f((xs.filter(Boolean).length / Math.max(1, xs.length)) * 100)}%`;
+      }).join('  ');
+      const never = f((1 - won.length / careers) * 100);
+      console.log(`${DINOSAURS[dino].name.padEnd(14)} ${`${q(0.25)} / ${q(0.5)} / ${q(0.75)}`.padStart(20)}  ${never.padStart(10)}%  ${hours.padStart(12)}   ${atWin.padStart(20)}   ${rates}`);
+    }
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   const runs = Number(args.find((a) => /^\d+$/.test(a)) ?? 300);
   const jsonIdx = args.indexOf('--json');
   const original = args.includes('--antes');
   if (original) applyOriginal();
+  // --chefe hp,dano: substitui BALANCE.bossScaling (para varrer valores).
+  const bossIdx = args.indexOf('--chefe');
+  const [hpM, dmgM] = bossIdx >= 0
+    ? (args[bossIdx + 1] ?? '1,1').split(',').map(Number)
+    : original ? [1, 1] : [BALANCE.bossScaling.hpMult, BALANCE.bossScaling.damageMult];
+  applyBossScaling(hpM, dmgM);
+  if (bossIdx >= 0) console.log(`[varredura] chefe: ${ENEMIES.giganotosaurus.hp} HP, dano ×${dmgM}`);
+  if (args.includes('--carreira')) {
+    careerMain(Number(args.find((a) => /^\d+$/.test(a)) ?? 150), 40);
+    return;
+  }
+  const metaIdx = args.indexOf('--meta');
+  const metaProfile = metaIdx >= 0 ? args[metaIdx + 1] ?? 'nenhum' : 'nenhum';
   const out: Record<string, unknown> = { runs, original, assume: ASSUME, rules: RULES, results: {} };
 
-  console.log(`\n=== DinoMutation — simulação de balanceamento${original ? ' [ANTES DA ETAPA 1]' : ' [ATUAL]'} (${runs} runs por dino/estilo) ===`);
+  console.log(`\n=== DinoMutation — simulação de balanceamento${original ? ' [ANTES DA ETAPA 1]' : ' [ATUAL]'} (${runs} runs por dino/estilo) · meta: ${metaProfile} ===`);
   console.log(`Chefe: ${ENEMIES.giganotosaurus.hp} HP, armadura ${ENEMIES.giganotosaurus.armor}. DPS bruto do chefe: ${([1, 2, 3] as const).slice(0, RULES.bossPhases).map((ph) => `fase${ph} ${f(bossRawDps(ph), 1)}/s`).join(', ')}`);
 
-  for (const picker of ['smart', 'random'] as Picker[]) {
+  for (const picker of ['smart', 'mixed', 'random'] as Picker[]) {
     for (const dino of DINO_ORDER) {
-      const rs = Array.from({ length: runs }, () => simulateRun(dino, picker));
+      const meta = profileLoadout(dino, metaProfile);
+      const rs = Array.from({ length: runs }, () => simulateRun(dino, picker, meta));
       const byT = new Map<number, Snapshot[]>();
       for (const r of rs) for (const s of r.snaps) byT.set(s.t, [...(byT.get(s.t) ?? []), s]);
-      console.log(`\n── ${DINOSAURS[dino].name} · escolhas ${picker === 'smart' ? 'inteligentes' : 'aleatórias'} ──`);
+      console.log(`\n── ${DINOSAURS[dino].name} · escolhas ${picker === 'smart' ? 'inteligentes' : picker === 'mixed' ? 'mistas (50/50)' : 'aleatórias'} ──`);
       console.log('tempo  nível  upg  vivos  mortes/s  capac.  dano  DPS-chefe  EHP   red%  cura/s  contato-max/s  TTK compy  TTK carno');
       const timeline: Record<string, number>[] = [];
       for (const [t, ss] of [...byT.entries()].sort((a, b) => a[0] - b[0])) {

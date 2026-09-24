@@ -1,8 +1,7 @@
 import { DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import {
-  PASSIVES, SHOP, fossilsForRun, masteryLevel, masteryXpForRun, unlocksAtMastery, type ShopItemDef,
+  fossilsForRun, loadoutFor, masteryLevel, masteryXpForRun, unlocksAtMastery, type MetaBonus, type ShopItemDef,
 } from '../../data/meta';
-import type { EffectDefinition } from '../upgrades/UpgradeTypes';
 import type { RunState } from './RunState';
 
 const KEY = 'dino-roguelite-save-v1';
@@ -103,24 +102,8 @@ export function purchase(dino: DinoId, item: ShopItemDef): SaveData | null {
   return s;
 }
 
-/** Hidden upgrades applied at run start: purchased shop levels + unlocked passives. */
-export interface MetaBonus {
-  id: string;
-  level: number;
-  effects: EffectDefinition[];
-}
-
 export function metaLoadout(dino: DinoId, s: SaveData = loadSave()): MetaBonus[] {
-  const out: MetaBonus[] = [];
-  for (const item of SHOP[dino]) {
-    const level = shopLevel(s, dino, item.id);
-    if (level > 0) out.push({ id: item.id, level, effects: item.effects });
-  }
-  const mastery = masteryLevel(s.mastery[dino] ?? 0);
-  for (const p of PASSIVES[dino]) {
-    if (mastery >= p.mastery) out.push({ id: p.id, level: 1, effects: p.effects });
-  }
-  return out;
+  return loadoutFor(dino, s.shop[dino] ?? {}, s.mastery[dino] ?? 0);
 }
 
 /** Debug helper (?debug): grants fossils and mastery to every dinosaur. */

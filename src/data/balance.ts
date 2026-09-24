@@ -42,6 +42,13 @@ export const BALANCE = {
     slow: { multiplier: 0.55 },
   },
 
+  /**
+   * Base difficulty of the final boss, on top of its data in enemies.ts. Tuned with
+   * `npm run balance -- --meta nenhum|max` and `--carreira`: without meta-progression a
+   * win should be rare; the Covil shop is what makes it reachable over many runs.
+   */
+  bossScaling: { hpMult: 1.7, damageMult: 1.9 },
+
   /** Normal enemies: hp × (1 + a·m + b·m²), damage × (1 + c·m), m = run minutes. */
   enemyScaling: {
     hpPerMinute: 0.26,

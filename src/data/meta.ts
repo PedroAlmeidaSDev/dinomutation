@@ -10,8 +10,8 @@ import type { DinoId } from './dinosaurs';
  * the regular effect engine (stat / trigger / flag) and never show up on cards.
  */
 export const META_ECONOMY = {
-  fossils: { perMinute: 8, perKills: 100, elite: 30, boss: 80 },
-  mastery: { secondsPerXp: 3, elite: 40, boss: 100, maxLevel: 10, xpPerLevel: 100 },
+  fossils: { perMinute: 6, perKills: 150, elite: 20, boss: 100 },
+  mastery: { secondsPerXp: 4, elite: 40, boss: 100, maxLevel: 10, xpPerLevel: 100 },
 };
 
 export interface ShopItemDef {
@@ -35,21 +35,22 @@ export interface PassiveDef {
   effects: EffectDefinition[];
 }
 
-const COSTS = [60, 150, 300];
-const GATES = [1, 3, 6];
+/** Five tiers per item: cheap early steps, mastery-gated late ones. */
+const COSTS = [80, 150, 250, 380, 550];
+const GATES = [1, 2, 4, 6, 8];
 
 const SHARED_ITEMS: ShopItemDef[] = [
   {
-    id: 'meta_vida', name: 'Ossos Robustos', description: '+6% de vida máxima por nível.',
-    effects: [{ type: 'stat', stat: 'maxHealth', mode: 'mult', value: 0.06 }], costs: COSTS, mastery: GATES,
+    id: 'meta_vida', name: 'Ossos Robustos', description: '+12% de vida máxima por nível.',
+    effects: [{ type: 'stat', stat: 'maxHealth', mode: 'mult', value: 0.12 }], costs: COSTS, mastery: GATES,
   },
   {
-    id: 'meta_dano', name: 'Músculos Ancestrais', description: '+5% de dano por nível.',
-    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.05 }], costs: COSTS, mastery: GATES,
+    id: 'meta_dano', name: 'Músculos Ancestrais', description: '+12% de dano por nível.',
+    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.12 }], costs: COSTS, mastery: GATES,
   },
   {
-    id: 'meta_armadura', name: 'Couro Curtido', description: '+4 de armadura por nível.',
-    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 4 }], costs: COSTS, mastery: GATES,
+    id: 'meta_armadura', name: 'Couro Curtido', description: '+5 de armadura por nível.',
+    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 5 }], costs: COSTS, mastery: GATES,
   },
   {
     id: 'meta_genes', name: 'Genes Adaptativos', description: '+6% de DNA (XP) ganho por nível.',
@@ -63,12 +64,12 @@ const SIGNATURE_ITEMS: Record<DinoId, ShopItemDef> = {
     effects: [{ type: 'stat', stat: 'critChance', mode: 'add', value: 0.03 }], costs: COSTS, mastery: GATES,
   },
   raptor: {
-    id: 'meta_raptor_as', name: 'Tendões Elásticos', description: '+5% de velocidade de ataque por nível.',
-    effects: [{ type: 'stat', stat: 'attackSpeed', mode: 'mult', value: 0.05 }], costs: COSTS, mastery: GATES,
+    id: 'meta_raptor_claw', name: 'Garras Afiadas', description: '+8% de dano de garra por nível.',
+    effects: [{ type: 'stat', stat: 'dmg_claw', mode: 'add', value: 0.08 }], costs: COSTS, mastery: GATES,
   },
   triceratops: {
-    id: 'meta_tri_cdr', name: 'Investida Veterana', description: '+5% de redução de recarga por nível.',
-    effects: [{ type: 'stat', stat: 'cooldownReduction', mode: 'add', value: 0.05 }], costs: COSTS, mastery: GATES,
+    id: 'meta_tri_horn', name: 'Chifres Afiados', description: '+8% de dano de chifrada por nível.',
+    effects: [{ type: 'stat', stat: 'dmg_horn', mode: 'add', value: 0.08 }], costs: COSTS, mastery: GATES,
   },
 };
 
@@ -181,6 +182,26 @@ export function fossilsForRun(r: RunRewardInput): number {
 export function masteryXpForRun(r: RunRewardInput): number {
   const m = META_ECONOMY.mastery;
   return Math.floor(r.elapsedTime / m.secondsPerXp) + (r.eliteKilled ? m.elite : 0) + (r.bossKilled ? m.boss : 0);
+}
+
+/** Hidden upgrades applied at run start: purchased shop levels + unlocked passives. */
+export interface MetaBonus {
+  id: string;
+  level: number;
+  effects: EffectDefinition[];
+}
+
+export function loadoutFor(dino: DinoId, shopLevels: Record<string, number>, masteryXp: number): MetaBonus[] {
+  const out: MetaBonus[] = [];
+  for (const item of SHOP[dino]) {
+    const level = shopLevels[item.id] ?? 0;
+    if (level > 0) out.push({ id: item.id, level, effects: item.effects });
+  }
+  const mastery = masteryLevel(masteryXp);
+  for (const p of PASSIVES[dino]) {
+    if (mastery >= p.mastery) out.push({ id: p.id, level: 1, effects: p.effects });
+  }
+  return out;
 }
 
 /** Everything unlocked by reaching exactly `level` (for the "level up!" message). */

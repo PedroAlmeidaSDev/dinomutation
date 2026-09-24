@@ -7,7 +7,7 @@ import type { StatusProc } from '../combat/DamageSystem';
 import { weightedPick } from '../../utils/math';
 import { EFFECT_HANDLERS, type EffectRuntime } from './UpgradeEffects';
 import type { EffectDefinition, UpgradeDefinition } from './UpgradeTypes';
-import type { MetaBonus } from '../core/Save';
+import type { MetaBonus } from '../../data/meta';
 
 export interface UpgradeChoice {
   def: UpgradeDefinition;
