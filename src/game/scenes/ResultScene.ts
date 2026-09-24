@@ -4,6 +4,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { RunState } from '../core/RunState';
 import { recordRun } from '../core/Save';
 import { formatTime } from '../../utils/math';
+import { centerDesign } from '../ui/layout';
 import { COLORS, FONT_BOLD, RARITY_COLORS, button, hex, text } from '../ui/theme';
 import type { Rarity } from '../../data/balance';
 
@@ -16,8 +17,10 @@ export abstract class ResultScene extends Phaser.Scene {
     const save = recordRun(s.dinosaur, s.elapsedTime, this.victory);
     const dino = DINOSAURS[s.dinosaur];
 
-    this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setOrigin(0).setAlpha(0.4);
-    this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, this.victory ? 0x1a1408 : 0x1a0808, 0.75).setOrigin(0);
+    centerDesign(this, [
+      this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.4),
+      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, this.victory ? 0x1a1408 : 0x1a0808, 0.75),
+    ]);
 
     const titleText = this.victory ? 'VITÓRIA!' : 'EXTINTO';
     const title = this.add.text(GAME_WIDTH / 2, 70, titleText, {
@@ -30,7 +33,7 @@ export abstract class ResultScene extends Phaser.Scene {
 
     if (this.victory) {
       const e = this.add.particles(GAME_WIDTH / 2, -10, 'spark', {
-        x: { min: -GAME_WIDTH / 2, max: GAME_WIDTH / 2 }, speedY: { min: 80, max: 200 }, speedX: { min: -40, max: 40 },
+        x: { min: -this.scale.width / 2, max: this.scale.width / 2 }, speedY: { min: 80, max: 200 }, speedX: { min: -40, max: 40 },
         lifespan: 4000, scale: { start: 1.2, end: 0.4 }, tint: [0xffd24a, 0xffffff, 0xff8a3a], frequency: 60, rotate: { min: 0, max: 360 },
       });
       e.setDepth(-1);

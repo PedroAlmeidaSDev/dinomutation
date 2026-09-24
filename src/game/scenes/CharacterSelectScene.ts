@@ -3,6 +3,7 @@ import { DINOSAURS, DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { loadSave } from '../core/Save';
 import { formatTime } from '../../utils/math';
+import { centerDesign } from '../ui/layout';
 import { prefersTouch } from '../ui/TouchControls';
 import { COLORS, FONT, FONT_BOLD, button, hex, text } from '../ui/theme';
 
@@ -20,8 +21,10 @@ export class CharacterSelectScene extends Phaser.Scene {
   create(): void {
     this.cards = [];
     this.selected = loadSave().lastDino ?? 'trex';
-    this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setOrigin(0).setAlpha(0.5);
-    this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.55).setOrigin(0);
+    centerDesign(this, [
+      this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.5),
+      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.55),
+    ]);
 
     this.add.text(GAME_WIDTH / 2, 50, 'ESCOLHA SEU DINOSSAURO', {
       fontFamily: FONT_BOLD, fontSize: '40px', color: COLORS.accentText, stroke: '#000000', strokeThickness: 8,

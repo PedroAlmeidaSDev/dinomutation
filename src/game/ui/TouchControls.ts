@@ -1,10 +1,9 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH } from '../config';
+import { safeInsets } from './layout';
 import { COLORS } from './theme';
 
 const STICK_RADIUS = 90;
 const DEAD_ZONE = 0.18;
-const PAUSE_X = GAME_WIDTH - 52;
 const PAUSE_Y = 56;
 const PAUSE_SIZE = 60;
 
@@ -57,12 +56,17 @@ export class TouchControls {
     this.opts.onShow();
   }
 
+  /** Pause button sits in the top-right corner of the actual screen. */
+  private get pauseX(): number {
+    return this.scene.scale.width - safeInsets(this.scene).right - 52;
+  }
+
   private onDown(p: Phaser.Input.Pointer): void {
     if (!p.wasTouch) return;
     this.show();
     if (this.opts.isBlocked()) return;
 
-    if (Math.abs(p.x - PAUSE_X) < PAUSE_SIZE * 0.7 && Math.abs(p.y - PAUSE_Y) < PAUSE_SIZE * 0.7) {
+    if (Math.abs(p.x - this.pauseX) < PAUSE_SIZE * 0.7 && Math.abs(p.y - PAUSE_Y) < PAUSE_SIZE * 0.7) {
       this.release();
       this.opts.onPause();
       return;
@@ -120,6 +124,7 @@ export class TouchControls {
 
     // Pause button
     const h = PAUSE_SIZE / 2;
+    const PAUSE_X = this.pauseX;
     g.fillStyle(0x000000, 0.5);
     g.fillRoundedRect(PAUSE_X - h, PAUSE_Y - h, PAUSE_SIZE, PAUSE_SIZE, 10);
     g.lineStyle(2, COLORS.border, 1);

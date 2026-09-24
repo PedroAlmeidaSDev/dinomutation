@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { HUD } from '../ui/HUD';
+import { onLayout } from '../ui/layout';
 import { PauseMenu } from '../ui/PauseMenu';
 import { TouchControls } from '../ui/TouchControls';
 import { UpgradeSelection, type SelectionOptions } from '../ui/UpgradeSelection';
@@ -32,6 +33,11 @@ export class HUDScene extends Phaser.Scene {
       onShow: () => this.hud.useTouchLayout(),
     });
     runScene.attachHud(this);
+    onLayout(this, () => {
+      this.hud.layout();
+      this.selection?.layout();
+      this.pause?.layout();
+    });
   }
 
   update(_t: number, delta: number): void {

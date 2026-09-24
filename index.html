@@ -5,17 +5,34 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Dino Mutation — Roguelite</title>
     <style>
+      :root {
+        --sal: env(safe-area-inset-left, 0px); --sar: env(safe-area-inset-right, 0px);
+        --sat: env(safe-area-inset-top, 0px); --sab: env(safe-area-inset-bottom, 0px);
+      }
       html, body {
         margin: 0; padding: 0; background: #0d0f0a; height: 100%; overflow: hidden;
         touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
         -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
       }
-      #game { width: 100vw; height: 100vh; height: 100dvh; display: flex; align-items: center; justify-content: center; }
+      #game { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; overflow: hidden; }
       canvas { display: block; }
+      #rotate {
+        display: none; position: fixed; inset: 0; z-index: 10; background: #0d0f0a; color: #ffcf6a;
+        font: 700 20px "Trebuchet MS", sans-serif; text-align: center;
+        flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px;
+      }
+      #rotate svg { width: 72px; height: 72px; }
+      @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
     </style>
   </head>
   <body>
     <div id="game"></div>
+    <div id="rotate">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="7" y="2" width="10" height="20" rx="2" transform="rotate(-90 12 12)" /><path d="M4 6a8 8 0 0 1 6-4M8 1l2 1-1 2" />
+      </svg>
+      Gire o celular para jogar na horizontal
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

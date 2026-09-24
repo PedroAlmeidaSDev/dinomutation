@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import type { Rarity } from '../../data/balance';
+import { fullscreenSupported, isFullscreen, toggleFullscreen } from '../core/Fullscreen';
 
 export const FONT = '"Trebuchet MS", "Segoe UI", sans-serif';
 export const FONT_BOLD = '"Arial Black", "Segoe UI Black", "Trebuchet MS", sans-serif';
@@ -83,6 +84,50 @@ export function button(
   c.on('pointerout', () => { draw(false); scene.tweens.add({ targets: c, scale: 1, duration: 80 }); });
   c.on('pointerdown', () => {
     scene.tweens.add({ targets: c, scale: 0.95, duration: 50, yoyo: true, onComplete: onClick });
+  });
+  return c;
+}
+
+/**
+ * Square ⛶ button that toggles browser fullscreen. Fires on pointerup (not in
+ * a tween callback) because browsers only allow fullscreen inside the gesture.
+ * Returns null where fullscreen is unavailable (iPhone Safari).
+ */
+export function fullscreenButton(scene: Phaser.Scene, x: number, y: number, size = 52): Phaser.GameObjects.Container | null {
+  if (!fullscreenSupported()) return null;
+  const g = scene.add.graphics();
+  const draw = (hover: boolean) => {
+    const h = size / 2;
+    const a = size * 0.22;
+    const inset = size * 0.26;
+    g.clear();
+    g.fillStyle(0x000000, hover ? 0.7 : 0.5);
+    g.fillRoundedRect(-h, -h, size, size, 10);
+    g.lineStyle(2, hover ? COLORS.accent : COLORS.border, 1);
+    g.strokeRoundedRect(-h, -h, size, size, 10);
+    g.lineStyle(4, 0xffffff, 0.9);
+    // Corner brackets pointing out (enter) or in (exit).
+    const out = !isFullscreen();
+    for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+      const cx = sx * (h - inset);
+      const cy = sy * (h - inset);
+      const d = out ? -1 : 1;
+      g.lineBetween(cx, cy, cx + d * sx * a, cy);
+      g.lineBetween(cx, cy, cx, cy + d * sy * a);
+    }
+  };
+  draw(false);
+  const c = scene.add.container(x, y, [g]);
+  c.setSize(size, size).setInteractive({ useHandCursor: true });
+  c.on('pointerover', () => draw(true));
+  c.on('pointerout', () => draw(false));
+  c.on('pointerup', () => toggleFullscreen());
+  const redraw = () => draw(false);
+  document.addEventListener('fullscreenchange', redraw);
+  document.addEventListener('webkitfullscreenchange', redraw);
+  c.once(Phaser.GameObjects.Events.DESTROY, () => {
+    document.removeEventListener('fullscreenchange', redraw);
+    document.removeEventListener('webkitfullscreenchange', redraw);
   });
   return c;
 }

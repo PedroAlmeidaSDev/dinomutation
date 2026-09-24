@@ -4,7 +4,7 @@ import type { RunContext } from '../core/RunContext';
 
 export type PickupKind = 'dna' | 'meat' | 'magnet' | 'mutagen';
 
-interface Pickup {
+export interface Pickup {
   kind: PickupKind;
   sprite: Phaser.GameObjects.Image;
   x: number;
@@ -21,6 +21,11 @@ export class PickupSystem {
   private list: Pickup[] = [];
 
   constructor(private readonly ctx: RunContext) {}
+
+  /** Pickups currently in the world (read-only; used by the pause minimap). */
+  get active(): readonly Pickup[] {
+    return this.list;
+  }
 
   spawnDNA(x: number, y: number, value: number): void {
     // Merge into an existing orb if too many exist (keeps the count bounded).

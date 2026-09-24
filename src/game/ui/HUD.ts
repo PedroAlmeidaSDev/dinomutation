@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import { TAG_COLORS, TAG_LABELS } from '../../data/upgrades';
-import { DEBUG, GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { DEBUG } from '../config';
 import type { Run } from '../core/Run';
 import type { Enemy } from '../entities/enemies/Enemy';
 import { formatTime } from '../../utils/math';
+import { safeInsets } from './layout';
 import { COLORS, FONT_BOLD, RARITY_COLORS, drawTagIcon, hex, text } from './theme';
 
 /** In-run heads-up display. Reads run state every frame; owns no game logic. */
@@ -24,35 +25,71 @@ export class HUD {
   private abilityWasReady = true;
   private abilityPulse = 0;
   private touchLayout = false;
+  /** Screen size and safe-area margins, refreshed by layout(). */
+  private W = 0;
+  private H = 0;
+  private L = 0;
+  private R = 0;
+  private B = 0;
   /** Ability button position; moved bottom-right and enlarged in touch layout. */
-  readonly ability = { x: GAME_WIDTH / 2, y: GAME_HEIGHT - 70, r: 30 };
+  readonly ability = { x: 0, y: 0, r: 30 };
 
   constructor(private readonly scene: Phaser.Scene, private readonly run: Run) {
     this.g = scene.add.graphics();
     this.iconG = scene.add.graphics();
-    this.hpText = text(scene, 160, 34, '', 15, '#ffffff', true).setOrigin(0.5);
-    this.levelText = text(scene, 16, 52, '', 18, COLORS.accentText, true);
-    this.timerText = text(scene, GAME_WIDTH / 2, 22, '00:00', 30, '#ffffff', true).setOrigin(0.5, 0);
-    this.killsText = text(scene, GAME_WIDTH / 2, 60, '', 15, COLORS.muted, false).setOrigin(0.5, 0);
-    this.abilityText = text(scene, GAME_WIDTH / 2, GAME_HEIGHT - 26, run.abilities.ability.name.toUpperCase(), 13, '#ffffff', true).setOrigin(0.5);
-    this.abilityKey = text(scene, GAME_WIDTH / 2, GAME_HEIGHT - 72, 'SPACE', 14, '#ffffff', true).setOrigin(0.5);
-    this.bossName = text(scene, GAME_WIDTH / 2, 92, '', 16, '#ffd0c0', true).setOrigin(0.5, 0).setVisible(false);
-    this.buildText = text(scene, 16, GAME_HEIGHT - 130, '', 14, '#ffffff', true);
+    this.hpText = text(scene, 0, 34, '', 15, '#ffffff', true).setOrigin(0.5);
+    this.levelText = text(scene, 0, 52, '', 18, COLORS.accentText, true);
+    this.timerText = text(scene, 0, 22, '00:00', 30, '#ffffff', true).setOrigin(0.5, 0);
+    this.killsText = text(scene, 0, 60, '', 15, COLORS.muted, false).setOrigin(0.5, 0);
+    this.abilityText = text(scene, 0, 0, run.abilities.ability.name.toUpperCase(), 13, '#ffffff', true).setOrigin(0.5);
+    this.abilityKey = text(scene, 0, 0, 'SPACE', 14, '#ffffff', true).setOrigin(0.5);
+    this.bossName = text(scene, 0, 92, '', 16, '#ffd0c0', true).setOrigin(0.5, 0).setVisible(false);
+    this.buildText = text(scene, 0, 0, '', 14, '#ffffff', true);
     if (DEBUG) {
-      this.debugText = text(scene, GAME_WIDTH - 12, GAME_HEIGHT - 12,
+      this.debugText = text(scene, 0, 0,
         'DEBUG  1:+Nível  2:Invencível  3:Elite  4:Boss  5:Matar todos  6:+60s', 12, '#8aff8a').setOrigin(1, 1);
     }
+    this.layout();
   }
 
   /** Big thumb-sized ability button in the bottom-right corner. */
   useTouchLayout(): void {
     if (this.touchLayout) return;
     this.touchLayout = true;
-    Object.assign(this.ability, { x: GAME_WIDTH - 130, y: GAME_HEIGHT - 140, r: 64 });
     this.abilityText.setVisible(false);
-    this.abilityKey.setText(this.run.abilities.ability.name.toUpperCase()).setFontSize(17)
-      .setPosition(this.ability.x, this.ability.y);
-    this.debugText?.setY(GAME_HEIGHT - 250);
+    this.abilityKey.setText(this.run.abilities.ability.name.toUpperCase()).setFontSize(17);
+    this.layout();
+  }
+
+  /** Anchors everything to the current screen edges. Called on start and on every resize. */
+  layout(): void {
+    const s = this.scene.scale;
+    const inset = safeInsets(this.scene);
+    this.W = s.width;
+    this.H = s.height;
+    this.L = 16 + inset.left;
+    this.R = inset.right;
+    this.B = inset.bottom;
+    const cx = this.W / 2;
+    const bottom = this.H - this.B;
+
+    this.hpText.setX(this.L + 144);
+    this.levelText.setX(this.L);
+    this.timerText.setX(cx);
+    this.killsText.setX(cx);
+    this.bossName.setX(cx);
+    if (this.touchLayout) {
+      Object.assign(this.ability, { x: this.W - this.R - 130, y: bottom - 140, r: 64 });
+      this.abilityKey.setPosition(this.ability.x, this.ability.y);
+      this.debugText?.setPosition(this.W - this.R - 12, bottom - 250);
+    } else {
+      Object.assign(this.ability, { x: cx, y: bottom - 70, r: 30 });
+      this.abilityText.setPosition(cx, bottom - 26);
+      this.abilityKey.setPosition(cx, bottom - 72);
+      this.debugText?.setPosition(this.W - this.R - 12, bottom - 12);
+    }
+    // Force the upgrade row to redraw at the new position.
+    this.upgradeSignature = '';
   }
 
   update(dt: number): void {
@@ -63,19 +100,20 @@ export class HUD {
 
     // XP bar (full width)
     g.fillStyle(COLORS.xpBack, 0.9);
-    g.fillRect(0, 0, GAME_WIDTH, 10);
+    g.fillRect(0, 0, this.W, 10);
     g.fillStyle(COLORS.xp, 1);
-    g.fillRect(0, 0, GAME_WIDTH * Math.min(1, run.xp.progress), 10);
+    g.fillRect(0, 0, this.W * Math.min(1, run.xp.progress), 10);
     this.levelText.setText(`NÍVEL ${run.xp.level}`);
 
     // HP
     const hpRatio = Math.max(0, p.health.ratio);
     g.fillStyle(0x000000, 0.5);
-    g.fillRoundedRect(14, 20, 292, 28, 6);
+    const hx = this.L + 2;
+    g.fillRoundedRect(hx - 4, 20, 292, 28, 6);
     g.fillStyle(COLORS.hpBack, 1);
-    g.fillRoundedRect(18, 24, 284, 20, 4);
+    g.fillRoundedRect(hx, 24, 284, 20, 4);
     g.fillStyle(hpRatio < 0.3 ? 0xff2020 : COLORS.hp, 1);
-    if (hpRatio > 0) g.fillRoundedRect(18, 24, Math.max(8, 284 * hpRatio), 20, 4);
+    if (hpRatio > 0) g.fillRoundedRect(hx, 24, Math.max(8, 284 * hpRatio), 20, 4);
     this.hpText.setText(`${Math.ceil(Math.max(0, p.health.current))} / ${Math.round(p.health.max)}`);
 
     // Timer & kills
@@ -86,7 +124,7 @@ export class HUD {
     const big: Enemy | null = run.director.boss ?? run.director.elite;
     if (big && !big.dead) {
       const w = big.isBossLike && big.def.rank === 'boss' ? 620 : 420;
-      const x = GAME_WIDTH / 2 - w / 2;
+      const x = this.W / 2 - w / 2;
       g.fillStyle(0x000000, 0.6);
       g.fillRoundedRect(x - 4, 114, w + 8, 22, 5);
       g.fillStyle(0x3a0c08, 1);
@@ -124,7 +162,7 @@ export class HUD {
     this.abilityKey.setColor(ab.ready ? '#1a1408' : '#ffffff').setStroke(ab.ready ? '#ffe0a0' : '#000000', 3);
     if (!this.touchLayout) {
       g.fillStyle(0x000000, 0.55);
-      g.fillRoundedRect(cx - 90, GAME_HEIGHT - 36, 180, 20, 6);
+      g.fillRoundedRect(cx - 90, this.H - this.B - 36, 180, 20, 6);
     }
 
     this.drawUpgrades();
@@ -145,11 +183,11 @@ export class HUD {
     const size = 34;
     const gap = 5;
     const perRow = 12;
-    const baseY = GAME_HEIGHT - 16 - size;
+    const baseY = this.H - this.B - 16 - size;
     list.forEach((u, i) => {
       const col = i % perRow;
       const row = Math.floor(i / perRow);
-      const x = 16 + col * (size + gap);
+      const x = this.L + col * (size + gap);
       const y = baseY - row * (size + gap);
       g.fillStyle(0x000000, 0.6);
       g.fillRoundedRect(x, y, size, size, 5);
@@ -163,7 +201,7 @@ export class HUD {
     });
     const rows = Math.ceil(list.length / perRow);
     const primary = this.run.upgrades.primaryTag;
-    this.buildText.setY(baseY - rows * (size + gap) + 12);
+    this.buildText.setPosition(this.L, baseY - rows * (size + gap) + 12);
     this.buildText.setText(primary && list.length >= 2 ? `BUILD: ${TAG_LABELS[primary] ?? primary.toUpperCase()}` : '');
     this.buildText.setColor(primary ? hex(TAG_COLORS[primary] ?? 0xffffff) : '#ffffff');
   }
@@ -171,10 +209,10 @@ export class HUD {
   /** Big announcement across the top of the screen. */
   banner(title: string, sub?: string, color = 0xffc070): void {
     const s = this.scene;
-    const t = s.add.text(GAME_WIDTH / 2, 190, title, {
+    const t = s.add.text(this.W / 2, 190, title, {
       fontFamily: FONT_BOLD, fontSize: '40px', color: hex(color), stroke: '#000000', strokeThickness: 7,
     }).setOrigin(0.5).setAlpha(0).setScale(1.4);
-    const st = sub ? text(s, GAME_WIDTH / 2, 234, sub, 18, '#ffffff', true).setOrigin(0.5).setAlpha(0) : null;
+    const st = sub ? text(s, this.W / 2, 234, sub, 18, '#ffffff', true).setOrigin(0.5).setAlpha(0) : null;
     s.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 260, ease: 'Back.easeOut' });
     if (st) s.tweens.add({ targets: st, alpha: 1, duration: 300, delay: 120 });
     s.time.delayedCall(2600, () => {
