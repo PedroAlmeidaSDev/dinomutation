@@ -29,6 +29,8 @@ export interface GameEvents {
   onUpgradeAcquired: { id: string; level: number };
   tick: { dt: number };
   banner: { text: string; sub?: string; color?: number };
+  /** The story boss died: the scene offers ending the run or continuing into the endless mode. */
+  storyBossDefeated: Record<string, never>;
 }
 
 export type GameEventName = keyof GameEvents;

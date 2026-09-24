@@ -18,6 +18,10 @@ export interface EnemyBehavior {
 export interface EnemyScaling {
   hpMult: number;
   damageMult: number;
+  /** Movement speed multiplier (endless mode). */
+  speedMult?: number;
+  /** Flat armor bonus (endless mutation Pele Grossa). */
+  armorAdd?: number;
 }
 
 export class Enemy implements StatusHost {
@@ -73,8 +77,8 @@ export class Enemy implements StatusHost {
     this.maxHp = Math.round(def.hp * scaling.hpMult);
     this.hp = this.maxHp;
     this.radius = def.radius;
-    this.speed = def.speed;
-    this.armor = def.armor;
+    this.speed = def.speed * (scaling.speedMult ?? 1);
+    this.armor = def.armor + (scaling.armorAdd ?? 0);
     this.mass = def.mass;
     this.damageMult = scaling.damageMult;
     this.ccResist = def.rank === 'boss' ? 0.75 : def.rank === 'elite' ? 0.5 : 0;

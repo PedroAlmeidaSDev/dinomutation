@@ -245,7 +245,41 @@ Estável em 10 de 10 execuções. Também mede o dano bruto real em quem fica co
 
 ---
 
-## 6. Modo infinito ("Era Sem Fim")
+## 6. Modo infinito ("Era Sem Fim") · ✅ implementado
+
+> **Como ficou no código.** Parâmetros em `src/data/endless.ts` (`ENDLESS_CONFIG`, `ERA_MUTATIONS`). A lógica fica em `src/game/systems/EndlessDirector.ts`, que o `RunDirector` passa a usar depois de `startEndless()`. A tela de escolha é `src/game/ui/VictoryChoice.ts`.
+>
+> - **Fluxo:**
+>   - a morte do Giganotosaurus emite `storyBossDefeated`, e a run **não** termina sozinha;
+>   - a vitória é registrada e nada nasce enquanto o jogador decide;
+>   - após 1,6 s aparece [Continuar (ENTER)] / [Encerrar (ESC)];
+>   - continuar dá 10 s de calma e 1 escolha lendária (`XPSystem.pendingLegendary`).
+> - **Eras:**
+>   - horda com mix sorteado por Era, evento aos 1:30 (anel de Compys ou bando), `1 + floor(era/2)` Carnotaurus Alfa aos 2:00 (máx. 3) e Giganotosaurus aos 3:00;
+>   - o relógio da Era para enquanto o chefe vive, e matá-lo avança a Era e dá outra escolha lendária.
+> - **Escala:**
+>   - inimigos comuns partem da força dos 9:00 da história e crescem continuamente (HP ×1,35, dano ×1,15, velocidade +3% por Era, até +30%);
+>   - chefe e elites sobem um degrau por Era (`EnemyScaling` ganhou `speedMult` e `armorAdd`).
+> - **Mutações** (uma por Era a partir da 3ª, cumulativas): Pele Grossa (+20 de armadura), Seca (sem carne), Enxame (+35% de spawn), Frenesi Selvagem (+20% de velocidade) e Chuva de Meteoros.
+> - **Evoluções Infinitas:** `evo_presas` (+4% de dano), `evo_reflexos` (+3% de vel. de ataque) e `evo_couraca` (+2 de armadura) são cartas repetíveis que entram, em ordem aleatória, quando o pool acaba.
+> - **Save e UI:**
+>   - `SaveData` ganhou `endlessRuns`, `bestEra` e `bestEraByDino`;
+>   - a vitória conta mesmo se o jogador morrer depois no infinito;
+>   - a tela de resultado mostra a Era, o tempo no infinito, o recorde e as mutações;
+>   - o HUD mostra "ERA N", e o menu mostra a melhor Era.
+> - **Teste:** `npm run test:endless` roda a classe `Run` **real** headless. Ele confere:
+>   - o fluxo de vitória (inclusive a pausa nos spawns);
+>   - a calma, o ciclo da Era (elites aos 120 s, chefe aos 180 s, relógio parado);
+>   - o avanço de Era, as escolhas lendárias e o HP do chefe por Era;
+>   - as mutações e as Evoluções Infinitas.
+>
+>   `npm test` roda os dois testes.
+> - **Ainda não feito:**
+>   - os chefes novos da rotação (§5.3), por isso toda Era termina num Giganotosaurus mais forte;
+>   - as mutações *Noite* e *Carniceiros*;
+>   - a seed do dia;
+>   - uma extensão `--infinito` do simulador para calibrar a Era média de morte (meta: 4–6);
+>   - a tela de escolha, o fluxo da `RunScene` e a tela de resultado ainda **não foram jogados no navegador**.
 
 ### 6.1 Fluxo
 
@@ -310,7 +344,7 @@ Cada **Era** dura 180 s:
 | 4 | Carnotaurus Alfa (frenesi, investida guiada, fuga) | S | 1 |
 | 5 | Níveis de ameaça (Casual/Normal/Difícil/Pesadelo) + save | M | 1 |
 | 6 | Inimigos campeões + mini-chefe das 3:00 | M | 1 |
-| 7 | Modo infinito: fluxo pós-vitória, `EndlessTimeline`, Eras, Evoluções Infinitas, save/placar | L | 3, 6 |
+| 7 | ✅ Modo infinito: fluxo pós-vitória, `EndlessDirector`, Eras, Evoluções Infinitas, save/placar | L | 3, 6 |
 | 8 | Novos chefes (Spinosaurus → Ankylosaurus → Quetzalcoatlus → Matriarca) | L cada | 7 |
 | 9 | Mutações de Era | M | 7 |
 
@@ -336,6 +370,8 @@ npm run balance                      # jogo atual (com a Etapa 1), 300 runs por 
 npm run balance -- 1000              # mais runs
 npm run balance:antes                # valores anteriores à Etapa 1, para comparar
 npm run test:boss                    # teste headless do Giganotosaurus (3 fases)
+npm run test:endless                 # teste headless do modo infinito (classe Run real)
+npm test                             # os dois testes
 npm run balance -- 400 --json out.json   # exporta a timeline completa em JSON
 ```
 

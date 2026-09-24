@@ -80,7 +80,8 @@ export class HUD {
 
     // Timer & kills
     this.timerText.setText(formatTime(run.director.elapsed));
-    this.killsText.setText(`☠ ${run.run.kills}`);
+    const era = run.director.endless ? `ERA ${run.run.era}  ·  ` : '';
+    this.killsText.setText(`${era}☠ ${run.run.kills}`);
 
     // Boss / elite bar
     const big: Enemy | null = run.director.boss ?? run.director.elite;

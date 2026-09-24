@@ -245,7 +245,9 @@ export class UpgradeSystem {
         extra = extra.filter((u) => u !== pick);
       }
     }
-    for (const c of UPGRADES.filter((u) => u.consumable)) {
+    // Pool exhausted: fill with repeatable cards (heal, Ovo Vital, Evoluções Infinitas) in random order.
+    const fillers = UPGRADES.filter((u) => u.consumable).sort(() => Math.random() - 0.5);
+    for (const c of fillers) {
       if (picks.length >= count) break;
       picks.push(c);
     }

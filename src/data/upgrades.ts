@@ -417,6 +417,25 @@ export const UPGRADES: UpgradeDefinition[] = [
     description: '+15 de vida máxima.',
     effects: [{ type: 'stat', stat: 'maxHealth', mode: 'add', value: 15 }],
   },
+  // Evoluções Infinitas: repeatable, offered once the regular pool runs dry (long endless runs).
+  {
+    id: 'evo_presas', name: 'Evolução: Presas', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['physical'],
+    description: '+4% de dano. Repetível.',
+    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.04 }],
+  },
+  {
+    id: 'evo_reflexos', name: 'Evolução: Reflexos', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['speed'],
+    description: '+3% de velocidade de ataque. Repetível.',
+    effects: [{ type: 'stat', stat: 'attackSpeed', mode: 'mult', value: 0.03 }],
+  },
+  {
+    id: 'evo_couraca', name: 'Evolução: Couraça', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['armor'],
+    description: '+2 de armadura. Repetível.',
+    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 2 }],
+  },
 ];
 
 export const UPGRADE_BY_ID: Record<string, UpgradeDefinition> = Object.fromEntries(UPGRADES.map((u) => [u.id, u]));

@@ -35,7 +35,7 @@ export class MenuScene extends Phaser.Scene {
 
     const save = loadSave();
     const info = save.runs > 0
-      ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}`
+      ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}${save.bestEra ? `   ·   Melhor Era: ${save.bestEra}` : ''}`
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
     text(this, GAME_WIDTH / 2, 420, info, 17, COLORS.muted).setOrigin(0.5);
 
