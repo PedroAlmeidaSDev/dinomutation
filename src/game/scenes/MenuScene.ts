@@ -31,13 +31,15 @@ export class MenuScene extends Phaser.Scene {
     this.tweens.add({ targets: title, scale: 1.03, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
     text(this, GAME_WIDTH / 2, 225, 'Roguelite de mutações jurássicas', 22, '#e8dcc0', true).setOrigin(0.5);
 
-    button(this, GAME_WIDTH / 2, 340, 'JOGAR', () => this.go(), { width: 300, height: 70, fontSize: 30 });
+    button(this, GAME_WIDTH / 2, 320, 'JOGAR', () => this.go(), { width: 300, height: 70, fontSize: 30 });
+    button(this, GAME_WIDTH / 2, 405, 'COVIL', () => this.scene.start('Lair'), { width: 240, height: 54, fontSize: 22, color: 0xc49a4a });
 
     const save = loadSave();
     const info = save.runs > 0
       ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}`
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
-    text(this, GAME_WIDTH / 2, 420, info, 17, COLORS.muted).setOrigin(0.5);
+    text(this, GAME_WIDTH / 2, 470, info, 17, COLORS.muted).setOrigin(0.5);
+    if (save.fossils > 0) text(this, GAME_WIDTH / 2, 500, `Fósseis: ${save.fossils}`, 18, COLORS.accentText, true).setOrigin(0.5);
 
     text(this, GAME_WIDTH / 2, GAME_HEIGHT - 70, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
