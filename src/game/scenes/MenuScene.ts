@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { loadSave } from '../core/Save';
 import { formatTime } from '../../utils/math';
-import { COLORS, FONT_BOLD, button, text } from '../ui/theme';
+import { centerDesign, designOffset, onLayout, safeInsets } from '../ui/layout';
+import { COLORS, FONT_BOLD, button, fullscreenButton, text } from '../ui/theme';
 import { prefersTouch } from '../ui/TouchControls';
 
 export class MenuScene extends Phaser.Scene {
@@ -14,8 +15,10 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.walkers = [];
-    this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setOrigin(0).setAlpha(0.6);
-    this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.45).setOrigin(0);
+    centerDesign(this, [
+      this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.6),
+      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.45),
+    ]);
 
     // Background parade of creatures
     const textures = ['en_compy', 'en_raptor', 'en_dilo', 'en_pachy', 'en_carno', 'dino_trex', 'dino_raptor', 'dino_tri', 'en_compy', 'en_compy'];
@@ -35,13 +38,16 @@ export class MenuScene extends Phaser.Scene {
 
     const save = loadSave();
     const info = save.runs > 0
-      ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}`
+      ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}${save.bestEra ? `   ·   Melhor Era: ${save.bestEra}` : ''}`
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
     text(this, GAME_WIDTH / 2, 420, info, 17, COLORS.muted).setOrigin(0.5);
 
     text(this, GAME_WIDTH / 2, GAME_HEIGHT - 70, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
       : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 16, '#d8d0b8').setOrigin(0.5);
+
+    const fs = fullscreenButton(this, 0, 0)?.setScrollFactor(0);
+    if (fs) onLayout(this, (v) => fs.setPosition(v.width - 44 - safeInsets(this).right, 44));
 
     this.input.keyboard?.once('keydown-ENTER', () => this.go());
     this.input.keyboard?.once('keydown-SPACE', () => this.go());
@@ -54,9 +60,10 @@ export class MenuScene extends Phaser.Scene {
 
   update(_t: number, delta: number): void {
     const dt = delta / 1000;
+    const ox = designOffset(this).x;
     for (const w of this.walkers) {
       w.img.x += w.speed * dt;
-      if (w.img.x > GAME_WIDTH + 80) w.img.x = -80;
+      if (w.img.x > GAME_WIDTH + ox + 80) w.img.x = -ox - 80;
     }
   }
 }

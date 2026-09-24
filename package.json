@@ -7,7 +7,12 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "balance": "node --experimental-strip-types --no-warnings tools/balance/sim.ts",
+    "balance:antes": "node --experimental-strip-types --no-warnings tools/balance/sim.ts --antes",
+    "test:boss": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/boss-test.ts",
+    "test:endless": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/endless-test.ts",
+    "test": "npm run test:boss && npm run test:endless"
   },
   "dependencies": {
     "phaser": "^3.90.0"

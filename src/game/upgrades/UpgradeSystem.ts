@@ -2,7 +2,7 @@ import { BALANCE, type Rarity } from '../../data/balance';
 import type { DinoDef } from '../../data/dinosaurs';
 import { TAG_COLORS, UPGRADES, UPGRADE_BY_ID } from '../../data/upgrades';
 import type { RunContext } from '../core/RunContext';
-import type { GameEventName } from '../core/EventBus';
+import type { GameEventName, GameEvents } from '../core/EventBus';
 import type { StatusProc } from '../combat/DamageSystem';
 import { weightedPick } from '../../utils/math';
 import { EFFECT_HANDLERS, type EffectRuntime } from './UpgradeEffects';
@@ -133,7 +133,11 @@ export class UpgradeSystem {
         state,
         power: () => this.power(def.id),
       };
-      const run = (payload: unknown) => handler(rt, payload);
+      // Boss minions don't feed on-kill upgrades (otherwise the boss fight heals the player).
+      const run = (payload: unknown) => {
+        if (eff.trigger === 'onKill' && (payload as GameEvents['onKill']).enemy.noRewards) return;
+        handler(rt, payload);
+      };
       if (eff.trigger === 'modifyDamage') this.cleanups.push(this.ctx.damage.addOutgoingModifier(run));
       else if (eff.trigger === 'modifyIncoming') this.cleanups.push(this.ctx.damage.addIncomingModifier(run));
       else this.cleanups.push(this.ctx.bus.on(eff.trigger as GameEventName, run));
@@ -241,7 +245,9 @@ export class UpgradeSystem {
         extra = extra.filter((u) => u !== pick);
       }
     }
-    for (const c of UPGRADES.filter((u) => u.consumable)) {
+    // Pool exhausted: fill with repeatable cards (heal, Ovo Vital, Evoluções Infinitas) in random order.
+    const fillers = UPGRADES.filter((u) => u.consumable).sort(() => Math.random() - 0.5);
+    for (const c of fillers) {
       if (picks.length >= count) break;
       picks.push(c);
     }

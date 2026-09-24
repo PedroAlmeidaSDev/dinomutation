@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { TAG_COLORS, TAG_LABELS } from '../../data/upgrades';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
+import { designOffset, fitShade } from './layout';
 import type { UpgradeChoice } from '../upgrades/UpgradeSystem';
 import { COLORS, FONT, FONT_BOLD, RARITY_COLORS, RARITY_LABELS, button, drawTagIcon, hex, text } from './theme';
 
@@ -21,6 +22,7 @@ const CARD_H = 390;
 /** Level-up screen: three mutation cards (click or keys 1-3), optional reroll (R). */
 export class UpgradeSelection {
   private readonly root: Phaser.GameObjects.Container;
+  private readonly shade: Phaser.GameObjects.Rectangle;
   private keyHandler?: (e: KeyboardEvent) => void;
   private closed = false;
   private readyAt: number;
@@ -29,8 +31,8 @@ export class UpgradeSelection {
     this.readyAt = scene.time.now + 280;
     const objs: Phaser.GameObjects.GameObject[] = [];
 
-    const shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.72).setOrigin(0).setInteractive();
-    objs.push(shade);
+    this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.72).setOrigin(0).setInteractive();
+    objs.push(this.shade);
     const title = scene.add.text(GAME_WIDTH / 2, 70, opts.title, {
       fontFamily: FONT_BOLD, fontSize: '42px', color: COLORS.accentText, stroke: '#000000', strokeThickness: 8,
     }).setOrigin(0.5);
@@ -49,6 +51,7 @@ export class UpgradeSelection {
     }
 
     this.root = scene.add.container(0, 0, objs).setDepth(1000);
+    this.layout();
     this.root.setAlpha(0);
     scene.tweens.add({ targets: this.root, alpha: 1, duration: 160 });
 
@@ -58,6 +61,14 @@ export class UpgradeSelection {
       else if (e.code === 'KeyR' && this.opts.rerolls > 0) this.reroll();
     };
     scene.input.keyboard?.on('keydown', this.keyHandler);
+  }
+
+  /** Centres the cards in the current screen; the shade covers all of it. */
+  layout(): void {
+    if (this.closed) return;
+    const o = designOffset(this.scene);
+    this.root.setPosition(o.x, o.y);
+    fitShade(this.shade, this.scene);
   }
 
   private makeCard(choice: UpgradeChoice, index: number, x: number, y: number): Phaser.GameObjects.Container {

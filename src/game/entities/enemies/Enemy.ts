@@ -18,6 +18,10 @@ export interface EnemyBehavior {
 export interface EnemyScaling {
   hpMult: number;
   damageMult: number;
+  /** Movement speed multiplier (endless mode). */
+  speedMult?: number;
+  /** Flat armor bonus (endless mutation Pele Grossa). */
+  armorAdd?: number;
 }
 
 export class Enemy implements StatusHost {
@@ -32,8 +36,13 @@ export class Enemy implements StatusHost {
   readonly radius: number;
   readonly speed: number;
   readonly armor: number;
-  readonly damageMult: number;
+  /** Mutable so bosses can enrage mid-fight. */
+  damageMult: number;
   readonly mass: number;
+  /** Boss minions: drop nothing and don't feed on-kill upgrades (Voracidade etc.). */
+  noRewards = false;
+  /** Incoming damage multiplier (bosses' vulnerable windows). */
+  damageTakenMult = 1;
   dead = false;
   /** Set when the object has been removed from the world. */
   removed = false;
@@ -68,8 +77,8 @@ export class Enemy implements StatusHost {
     this.maxHp = Math.round(def.hp * scaling.hpMult);
     this.hp = this.maxHp;
     this.radius = def.radius;
-    this.speed = def.speed;
-    this.armor = def.armor;
+    this.speed = def.speed * (scaling.speedMult ?? 1);
+    this.armor = def.armor + (scaling.armorAdd ?? 0);
     this.mass = def.mass;
     this.damageMult = scaling.damageMult;
     this.ccResist = def.rank === 'boss' ? 0.75 : def.rank === 'elite' ? 0.5 : 0;

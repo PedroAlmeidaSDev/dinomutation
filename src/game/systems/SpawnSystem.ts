@@ -16,10 +16,7 @@ export class SpawnSystem {
     const ctx = this.ctx;
     const def = ENEMIES[id];
     if (def.rank === 'normal' && ctx.enemies.length >= BALANCE.maxEnemies) return null;
-    const scaling = def.rank === 'normal'
-      ? ctx.director.scaling()
-      : { hpMult: 1, damageMult: 1 };
-    const e = createEnemy(ctx.scene, id, x, y, scaling);
+    const e = createEnemy(ctx.scene, id, x, y, ctx.director.scaling(def.rank));
     ctx.enemies.push(e);
     e.behavior.onSpawn?.(e, ctx);
     return e;
@@ -77,12 +74,14 @@ export class SpawnSystem {
     }
   }
 
-  /** Spawn around a point (boss summons). */
-  spawnAround(id: EnemyId, x: number, y: number, count: number, radius: number): void {
+  /** Spawn around a point (boss summons). Summons give no rewards by default. */
+  spawnAround(id: EnemyId, x: number, y: number, count: number, radius: number, noRewards = true): void {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2 + Math.random() * 0.3;
       const e = this.spawn(id, x + Math.cos(a) * radius, y + Math.sin(a) * radius);
-      if (e) this.ctx.fx.dust(e.x, e.y, 4);
+      if (!e) continue;
+      e.noRewards = noRewards;
+      this.ctx.fx.dust(e.x, e.y, 4);
     }
   }
 

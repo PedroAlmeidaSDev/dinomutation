@@ -9,6 +9,8 @@ export class XPSystem {
   pendingLevelUps = 0;
   /** Rare choices granted by elite mutagens. */
   pendingRare = 0;
+  /** Legendary choices granted by the endless mode (continuing, Era bosses). */
+  pendingLegendary = 0;
 
   constructor(private readonly ctx: RunContext) {}
 
@@ -30,6 +32,6 @@ export class XPSystem {
   }
 
   get hasPending(): boolean {
-    return this.pendingLevelUps > 0 || this.pendingRare > 0;
+    return this.pendingLevelUps > 0 || this.pendingRare > 0 || this.pendingLegendary > 0;
   }
 }
