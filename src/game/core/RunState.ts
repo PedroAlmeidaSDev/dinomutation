@@ -21,6 +21,14 @@ export interface RunState {
   bossKilled: boolean;
   victory: boolean;
   primaryTag?: string;
+  /** Continued into the endless mode after beating the Giganotosaurus. */
+  endless: boolean;
+  /** Current Era (0 = story). */
+  era: number;
+  /** Seconds survived in the endless mode. */
+  endlessTime: number;
+  /** Names of the active Era mutations. */
+  mutations: string[];
 }
 
 export function createRunState(dinosaur: DinoId): RunState {
@@ -36,5 +44,9 @@ export function createRunState(dinosaur: DinoId): RunState {
     eliteKilled: false,
     bossKilled: false,
     victory: false,
+    endless: false,
+    era: 0,
+    endlessTime: 0,
+    mutations: [],
   };
 }

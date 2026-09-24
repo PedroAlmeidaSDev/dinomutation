@@ -73,7 +73,7 @@ export class Player implements StatusHost {
   constructor(private readonly scene: Phaser.Scene, readonly def: DinoDef, x: number, y: number) {
     this.x = x;
     this.y = y;
-    this.stats = new StatsComponent({ ...def.stats, pickupRange: BALANCE.player.basePickupRange });
+    this.stats = new StatsComponent({ ...def.stats, pickupRange: BALANCE.player.basePickupRange }, BALANCE.player.softCaps);
     this.health = new HealthComponent(this.stats.get('maxHealth'));
     this.stats.onChange = () => {
       const max = Math.round(this.stats.get('maxHealth'));

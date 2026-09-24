@@ -15,6 +15,7 @@ export function resolveCone(
     tags: ['melee', 'heavy'],
     knockAngle: Math.atan2(p.y - e.y, p.x - e.x),
     knockForce,
+    pierce: e.def.params.pierce ?? 0,
   });
   return true;
 }
@@ -30,6 +31,7 @@ export function resolveCircle(
     tags: melee ? ['melee', 'aoe'] : ['aoe'],
     knockAngle: Math.atan2(p.y - y, p.x - x),
     knockForce,
+    pierce: e.def.params.pierce ?? 0,
   });
   return true;
 }

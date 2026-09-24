@@ -49,10 +49,10 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'hemofagia', name: 'Hemofagia', rarity: 'rare', maxLevel: 3,
     tags: ['bleed', 'heal'],
-    description: 'Causar dano a inimigos sangrando recupera 1.2 de vida (recarga interna de 0.2s).',
+    description: 'Golpes em inimigos sangrando recuperam 0.8 de vida (recarga interna de 0.2s).',
     requires: { ownedTags: ['bleed'] },
     effects: [
-      { type: 'trigger', trigger: 'onHit', effect: 'healOnStatusHit', params: { status: 'bleed', amount: 1.2, icd: 0.2 } },
+      { type: 'trigger', trigger: 'onHit', effect: 'healOnStatusHit', params: { status: 'bleed', amount: 0.8, icd: 0.2 } },
     ],
   },
   {
@@ -296,8 +296,8 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'voracidade', name: 'Voracidade', rarity: 'common', maxLevel: 3,
     tags: ['heal', 'kill'],
-    description: 'Cada abate recupera 1 de vida.',
-    effects: [{ type: 'trigger', trigger: 'onKill', effect: 'healFlat', params: { amount: 1 } }],
+    description: 'Cada abate recupera 0.5 de vida (máx. 2 de vida por segundo).',
+    effects: [{ type: 'trigger', trigger: 'onKill', effect: 'healFlat', params: { amount: 0.5, maxPerSec: 2 } }],
   },
   {
     id: 'musculos_densos', name: 'Músculos Densos', rarity: 'common', maxLevel: 5,
@@ -416,6 +416,25 @@ export const UPGRADES: UpgradeDefinition[] = [
     tags: ['health'],
     description: '+15 de vida máxima.',
     effects: [{ type: 'stat', stat: 'maxHealth', mode: 'add', value: 15 }],
+  },
+  // Evoluções Infinitas: repeatable, offered once the regular pool runs dry (long endless runs).
+  {
+    id: 'evo_presas', name: 'Evolução: Presas', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['physical'],
+    description: '+4% de dano. Repetível.',
+    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.04 }],
+  },
+  {
+    id: 'evo_reflexos', name: 'Evolução: Reflexos', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['speed'],
+    description: '+3% de velocidade de ataque. Repetível.',
+    effects: [{ type: 'stat', stat: 'attackSpeed', mode: 'mult', value: 0.03 }],
+  },
+  {
+    id: 'evo_couraca', name: 'Evolução: Couraça', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['armor'],
+    description: '+2 de armadura. Repetível.',
+    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 2 }],
   },
 ];
 

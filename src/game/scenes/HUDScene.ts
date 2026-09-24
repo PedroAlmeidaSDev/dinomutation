@@ -3,6 +3,7 @@ import { HUD } from '../ui/HUD';
 import { PauseMenu } from '../ui/PauseMenu';
 import { TouchControls } from '../ui/TouchControls';
 import { UpgradeSelection, type SelectionOptions } from '../ui/UpgradeSelection';
+import { VictoryChoice } from '../ui/VictoryChoice';
 import type { RunScene } from './RunScene';
 
 /**
@@ -56,5 +57,9 @@ export class HUDScene extends Phaser.Scene {
   hidePause(): void {
     this.pause?.destroy();
     this.pause = null;
+  }
+
+  showVictoryChoice(onContinue: () => void, onEnd: () => void): void {
+    new VictoryChoice(this, onContinue, onEnd);
   }
 }

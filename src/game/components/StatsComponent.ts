@@ -80,15 +80,23 @@ interface Modifier {
   remaining: number;
 }
 
+/** Past `above`, the summed mult bonus only counts at `rate` (diminishing returns). */
+export interface SoftCap {
+  above: number;
+  rate: number;
+}
+
 export class StatsComponent {
   private readonly base: Partial<Record<StatKey, number>>;
+  private readonly softCaps: Partial<Record<StatKey, SoftCap>>;
   private readonly mods = new Map<string, Modifier>();
   private cache = new Map<StatKey, number>();
   /** Called after any change; used e.g. to keep current HP in sync with max HP. */
   onChange?: () => void;
 
-  constructor(base: Partial<Record<StatKey, number>>) {
+  constructor(base: Partial<Record<StatKey, number>>, softCaps: Partial<Record<StatKey, SoftCap>> = {}) {
     this.base = { ...base };
+    this.softCaps = softCaps;
   }
 
   get(stat: StatKey): number {
@@ -101,6 +109,8 @@ export class StatsComponent {
       if (m.mode === 'add') add += m.value;
       else mult += m.value;
     }
+    const cap = this.softCaps[stat];
+    if (cap && mult > cap.above) mult = cap.above + (mult - cap.above) * cap.rate;
     const base = this.base[stat] ?? STAT_DEFAULTS[stat] ?? 0;
     const v = (base + add) * (1 + mult);
     this.cache.set(stat, v);

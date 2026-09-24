@@ -13,20 +13,24 @@ export abstract class ResultScene extends Phaser.Scene {
 
   create(data: { state: RunState }): void {
     const s = data.state;
-    const save = recordRun(s.dinosaur, s.elapsedTime, this.victory);
+    // s.victory: the story boss died (a death later in the endless mode still counts as a win).
+    const save = recordRun(s.dinosaur, s.elapsedTime, s.victory, s.endless ? s.era : 0);
     const dino = DINOSAURS[s.dinosaur];
 
     this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setOrigin(0).setAlpha(0.4);
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, this.victory ? 0x1a1408 : 0x1a0808, 0.75).setOrigin(0);
 
-    const titleText = this.victory ? 'VITÓRIA!' : 'EXTINTO';
+    const titleText = this.victory ? 'VITÓRIA!' : s.endless ? `ERA ${s.era}` : 'EXTINTO';
     const title = this.add.text(GAME_WIDTH / 2, 70, titleText, {
-      fontFamily: FONT_BOLD, fontSize: '72px', color: this.victory ? '#ffd24a' : '#ff5a4a', stroke: '#000000', strokeThickness: 12,
+      fontFamily: FONT_BOLD, fontSize: '72px', color: this.victory ? '#ffd24a' : s.endless ? '#e0a0ff' : '#ff5a4a', stroke: '#000000', strokeThickness: 12,
     }).setOrigin(0.5).setScale(1.6).setAlpha(0);
     this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 500, ease: 'Back.easeOut' });
-    text(this, GAME_WIDTH / 2, 128,
-      this.victory ? 'O Giganotosaurus caiu. Você é o predador supremo.' : 'Sua linhagem termina aqui... por enquanto.',
-      18, '#e8dcc0', true).setOrigin(0.5);
+    const subtitle = this.victory
+      ? 'O Giganotosaurus caiu. Você é o predador supremo.'
+      : s.endless
+        ? `Vitória garantida — e sua linhagem resistiu até a Era ${s.era} da Era Sem Fim.`
+        : 'Sua linhagem termina aqui... por enquanto.';
+    text(this, GAME_WIDTH / 2, 128, subtitle, 18, '#e8dcc0', true).setOrigin(0.5);
 
     if (this.victory) {
       const e = this.add.particles(GAME_WIDTH / 2, -10, 'spark', {
@@ -51,9 +55,13 @@ export abstract class ResultScene extends Phaser.Scene {
       ['ABATES', `${s.kills}`],
       ['DANO CAUSADO', Math.round(s.damageDealt).toLocaleString('pt-BR')],
       ['DANO RECEBIDO', Math.round(s.damageTaken).toLocaleString('pt-BR')],
-      ['ELITE', s.eliteKilled ? 'Derrotada' : '—'],
+      s.endless
+        ? ['ERA SEM FIM', `Era ${s.era} · ${formatTime(s.endlessTime)}`]
+        : ['ELITE', s.eliteKilled ? 'Derrotada' : '—'],
       ['BUILD', s.primaryTag ? s.primaryTag.toUpperCase() : '—'],
-      ['MELHOR TEMPO', formatTime(save.bestTime)],
+      s.endless
+        ? ['MELHOR ERA', `${save.bestEraByDino[s.dinosaur] ?? s.era}`]
+        : ['MELHOR TEMPO', formatTime(save.bestTime)],
     ];
     rows.forEach(([k, v], i) => {
       text(this, 175, 190 + i * 39, k, 16, COLORS.muted, true);
@@ -67,6 +75,10 @@ export abstract class ResultScene extends Phaser.Scene {
       const row = i % 12;
       text(this, 620 + col * 255, 220 + row * 27, `${u.name}${u.level > 1 ? ` ${u.level}` : ''}`, 15, hex(RARITY_COLORS[u.rarity as Rarity] ?? 0xffffff), true);
     });
+
+    if (s.endless && s.mutations.length) {
+      text(this, GAME_WIDTH / 2, 582, `MUTAÇÕES DE ERA: ${s.mutations.join(' · ')}`, 15, '#e0a0ff', true).setOrigin(0.5, 0);
+    }
 
     button(this, GAME_WIDTH / 2 - 150, GAME_HEIGHT - 80, 'JOGAR NOVAMENTE', () => this.scene.start('Run', { dino: s.dinosaur }), { width: 280 });
     button(this, GAME_WIDTH / 2 + 150, GAME_HEIGHT - 80, 'MENU', () => this.scene.start('Menu'), { width: 220, color: 0x7a8a6a });

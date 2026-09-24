@@ -64,22 +64,42 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   },
   carnoAlpha: {
     id: 'carnoAlpha', name: 'Carnotaurus Alfa', texture: 'en_carno', behavior: 'carnoAlpha', rank: 'elite',
-    hp: 1800, speed: 92, contactDamage: 16, armor: 15, radius: 42, xp: 90, mass: 0.92, scale: 1.65,
+    hp: 4200, speed: 92, contactDamage: 18, armor: 20, radius: 42, xp: 90, mass: 0.92, scale: 1.65,
     params: {
-      attackRange: 170, windup: 0.7, arc: 1.7, reach: 210, damage: 32, cooldown: 1.1,
-      chargeWindup: 0.9, chargeSpeed: 640, chargeTime: 0.75, chargeDamage: 34,
-      shockRadius: 210, shockWindup: 0.8, shockDamage: 26,
+      attackRange: 170, windup: 0.7, arc: 1.7, reach: 210, damage: 40, cooldown: 1.1,
+      chargeWindup: 0.9, chargeSpeed: 640, chargeTime: 0.75, chargeDamage: 43,
+      shockRadius: 210, shockWindup: 0.8, shockDamage: 33,
     },
   },
   giganotosaurus: {
     id: 'giganotosaurus', name: 'Giganotosaurus', texture: 'en_giga', behavior: 'giganotosaurus', rank: 'boss',
-    hp: 9500, speed: 96, contactDamage: 20, armor: 30, radius: 58, xp: 0, mass: 1, scale: 1,
+    hp: 24000, speed: 96, contactDamage: 24, armor: 35, radius: 58, xp: 0, mass: 1, scale: 1,
     params: {
-      biteRange: 230, biteArc: 1.5, biteDamage: 38, biteWindup: 0.65,
-      chargeWindup: 0.9, chargeSpeed: 760, chargeTime: 0.85, chargeDamage: 40,
-      roarRadius: 320, roarWindup: 0.85, roarDamage: 16, roarForce: 900,
-      stompRadius: 95, stompWindup: 1.0, stompDamage: 30, stompCount: 3,
-      summonCount: 8, attackCooldown: 1.25,
+      biteRange: 230, biteArc: 1.5, biteDamage: 52, biteWindup: 0.65,
+      chargeWindup: 0.9, chargeSpeed: 760, chargeTime: 0.85, chargeDamage: 56,
+      roarRadius: 320, roarWindup: 0.85, roarDamage: 24, roarForce: 900,
+      stompRadius: 95, stompWindup: 1.0, stompDamage: 42, stompCount: 3,
+      summonCount: 8, attackCooldown: 1.0,
+      /** HP ratios where phase 2 (Fúria) and phase 3 (Predador Supremo) begin. */
+      phase2At: 0.66, phase3At: 0.33, ccResist: 0.9,
+      /** Combo bite: 2 bites (3 in phase 3), re-aimed each time. */
+      comboWindup: 0.45,
+      /** Phase 2+: 360° tail sweep when the player lingers behind. */
+      tailRadius: 200, tailWindup: 0.5, tailDamage: 34, tailBehindTime: 1.0,
+      /** Phase 2+: charges come in threes, with a short re-aim between them. */
+      chargeChain: 3, chargeReaim: 0.55,
+      /** Charging into a rock/wall: stunned and vulnerable. */
+      stunTime: 2, vulnerableMult: 1.5,
+      /** Phase 2+: the roar slows the player. */
+      roarSlow: 2.5,
+      /** Phase 3: falling rocks around the player. */
+      quakeDuration: 4, quakeInterval: 0.35, quakeRadius: 85, quakeWindup: 0.9, quakeDamage: 30,
+      /** Phase 3: the stomp becomes expanding shockwave rings. */
+      shockSpeed: 420, shockWidth: 40, shockMaxRadius: 720, shockCount: 2, shockGap: 0.6,
+      /** Share of the player's damage reduction ignored by telegraphed attacks. */
+      pierce: 0.35,
+      /** Seconds into the fight before the boss enrages (damage ×enrageDamage, windups ×enrageWindup). */
+      enrageTime: 150, enrageDamage: 1.5, enrageWindup: 0.8,
     },
   },
 };

@@ -80,7 +80,8 @@ export class HUD {
 
     // Timer & kills
     this.timerText.setText(formatTime(run.director.elapsed));
-    this.killsText.setText(`☠ ${run.run.kills}`);
+    const era = run.director.endless ? `ERA ${run.run.era}  ·  ` : '';
+    this.killsText.setText(`${era}☠ ${run.run.kills}`);
 
     // Boss / elite bar
     const big: Enemy | null = run.director.boss ?? run.director.elite;
@@ -94,8 +95,11 @@ export class HUD {
       g.fillStyle(big.def.rank === 'boss' ? 0xe02a1a : 0xff7040, 1);
       g.fillRect(x, 118, w * Math.max(0, big.hpRatio), 14);
       if (big.def.rank === 'boss') {
+        // Phase thresholds (Giganotosaurus: 66% / 33%).
         g.lineStyle(2, 0xffffff, 0.6);
-        g.lineBetween(x + w / 2, 116, x + w / 2, 134);
+        for (const t of [big.def.params.phase2At, big.def.params.phase3At]) {
+          if (t) g.lineBetween(x + w * t, 116, x + w * t, 134);
+        }
       }
       this.bossName.setVisible(true).setText(big.def.name.toUpperCase());
     } else {

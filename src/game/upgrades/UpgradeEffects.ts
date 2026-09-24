@@ -70,9 +70,11 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
     else ctx.player.stats.removeModifier(id);
   },
 
-  /** Heal when hitting an enemy that has a status, with internal cooldown (Hemofagia). */
+  /** Heal when hitting an enemy that has a status, with internal cooldown (Hemofagia). Direct hits only. */
   healOnStatusHit(rt, hit: HitEvent) {
     const { ctx } = rt;
+    // DoT ticks also emit onHit; counting them made the heal fire at its ICD non-stop.
+    if (hit.isDot) return;
     const now = ctx.run.elapsedTime;
     if (now < (rt.state.next ?? 0)) return;
     if (!ctx.status.has(hit.target, str(rt, 'status', 'bleed') as StatusId) && !hit.tags.includes('bleed')) return;
@@ -102,8 +104,21 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
     rt.ctx.abilities.reduce(num(rt, 'seconds', 0.2) * rt.power());
   },
 
+  /** Flat heal per event, optionally capped per second by `maxPerSec` × power (Voracidade). */
   healFlat(rt) {
-    rt.ctx.player.health.heal(num(rt, 'amount', 1) * rt.power());
+    const { ctx } = rt;
+    const s = rt.state;
+    const now = ctx.run.elapsedTime;
+    if (now - (s.windowStart ?? -Infinity) >= 1) {
+      s.windowStart = now;
+      s.windowHealed = 0;
+    }
+    let amount = num(rt, 'amount', 1) * rt.power();
+    const cap = num(rt, 'maxPerSec', Infinity) * rt.power();
+    amount = Math.min(amount, cap - s.windowHealed);
+    if (amount <= 0) return;
+    s.windowHealed += amount;
+    ctx.player.health.heal(amount);
   },
 
   /** Reflect melee damage (Espinhos). */
