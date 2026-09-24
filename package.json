@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "balance": "node --experimental-strip-types --no-warnings tools/balance/sim.ts",
-    "balance:proposta": "node --experimental-strip-types --no-warnings tools/balance/sim.ts --proposta"
+    "balance:antes": "node --experimental-strip-types --no-warnings tools/balance/sim.ts --antes"
   },
   "dependencies": {
     "phaser": "^3.90.0"

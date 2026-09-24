@@ -20,6 +20,8 @@ export class GiganotosaurusBehavior implements EnemyBehavior {
   private summonCd = 8;
   private stompSpots: { x: number; y: number }[] = [];
   private aura?: Phaser.GameObjects.Image;
+  private fightTime = 0;
+  private enraged = false;
 
   onSpawn(e: Enemy, ctx: RunContext): void {
     this.aura = ctx.scene.add.image(0, 0, 'glow').setTint(0xff6020).setBlendMode(Phaser.BlendModes.ADD).setScale(e.radius / 14).setAlpha(0.35);
@@ -31,14 +33,18 @@ export class GiganotosaurusBehavior implements EnemyBehavior {
     return this.phase === 2 ? 1.3 : 1;
   }
 
-  private get windupMult(): number {
-    return this.phase === 2 ? 0.78 : 1;
+  private windupMult(e: Enemy): number {
+    return (this.phase === 2 ? 0.78 : 1) * (this.enraged ? e.def.params.enrageWindup : 1);
   }
 
   update(e: Enemy, dt: number, ctx: RunContext): void {
     const p = e.def.params;
     this.timer -= dt;
     this.summonCd -= dt;
+    this.fightTime += dt;
+
+    // Soft DPS check: a long fight makes the boss hit harder and faster.
+    if (!this.enraged && this.fightTime >= p.enrageTime) this.enrage(e, ctx);
 
     if (this.phase === 1 && e.hpRatio <= 0.5 && this.state !== 'charging') {
       this.enterRage(e, ctx);
@@ -100,6 +106,15 @@ export class GiganotosaurusBehavior implements EnemyBehavior {
     ctx.hitstop(0.12);
   }
 
+  private enrage(e: Enemy, ctx: RunContext): void {
+    this.enraged = true;
+    e.damageMult *= e.def.params.enrageDamage;
+    this.aura?.setTint(0xff0040).setScale(e.radius / 11);
+    ctx.bus.emit('banner', { text: 'O GIGANOTOSAURUS ENLOUQUECE', sub: 'Acabe com ele rápido!', color: 0xff1030 });
+    ctx.fx.ring(e.x, e.y, 420, 0xff0040, 700);
+    ctx.fx.shake(0.012, 600);
+  }
+
   private chooseAttack(e: Enemy, ctx: RunContext): void {
     const p = e.def.params;
     const dist = e.distToPlayer(ctx);
@@ -117,7 +132,7 @@ export class GiganotosaurusBehavior implements EnemyBehavior {
 
   private beginAttack(e: Enemy, ctx: RunContext, attack: Attack): void {
     const p = e.def.params;
-    const wm = this.windupMult;
+    const wm = this.windupMult(e);
     this.attack = attack;
     this.last = attack;
     this.state = 'windup';

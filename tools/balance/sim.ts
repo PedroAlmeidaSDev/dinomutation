@@ -6,7 +6,7 @@
  * de uptime e densidade. Serve para comparar configurações, não para prever o
  * resultado exato de uma run.
  *
- * Uso:  node --experimental-strip-types tools/balance/sim.ts [runs] [--json saida.json]
+ * Uso:  node --experimental-strip-types tools/balance/sim.ts [runs] [--antes] [--json saida.json]
  */
 import { BALANCE, xpToNext, type Rarity } from '../../src/data/balance.ts';
 import { DIRECTOR_CONFIG } from '../../src/data/director.ts';
@@ -32,64 +32,68 @@ const ASSUME = {
 };
 
 /**
- * Regras de mecânica que ainda não existem no jogo. No modo atual ficam desligadas
- * (= comportamento do código hoje); `--proposta` liga os valores do plano.
+ * Regras de mecânica lidas dos dados do jogo (o que o código faz hoje).
+ * `--antes` restaura os valores anteriores à Etapa 1 do plano, para comparação.
  */
+const aps = BALANCE.player.softCaps.attackSpeed;
+const voracity = UPGRADE_BY_ID.voracidade.effects.find((e) => e.type === 'trigger');
+const hemophagy = UPGRADE_BY_ID.hemofagia.effects.find((e) => e.type === 'trigger');
+const gp = ENEMIES.giganotosaurus.params;
 const RULES = {
-  hpPerMinuteSq: 0,
+  hpPerMinuteSq: BALANCE.enemyScaling.hpPerMinuteSq,
   /** Acima deste bônus de vel. de ataque, o excedente rende só `apsSoftCapRate`. */
-  apsSoftCap: Infinity,
-  apsSoftCapRate: 1,
+  apsSoftCap: aps.above,
+  apsSoftCapRate: aps.rate,
   /** Voracidade: cura por abate e teto de cura/s por nível. */
-  voracityPerKill: 1,
-  voracityCapPerLevel: Infinity,
-  /** Hemofagia dispara em ticks de DoT (hoje: sim). */
-  hemophagyOnDot: true,
-  hemophagyAmount: 1.2,
+  voracityPerKill: Number(voracity?.type === 'trigger' ? voracity.params?.amount ?? 1 : 1),
+  voracityCapPerLevel: Number(voracity?.type === 'trigger' ? voracity.params?.maxPerSec ?? Infinity : Infinity),
+  /** Hemofagia dispara em ticks de DoT (antes: sim; agora só golpes diretos). */
+  hemophagyOnDot: false,
+  hemophagyAmount: Number(hemophagy?.type === 'trigger' ? hemophagy.params?.amount ?? 1.2 : 1.2),
   /** Lacaios do chefe contam para efeitos de abate. */
-  summonsGiveRewards: true,
+  summonsGiveRewards: false,
   /** Chefe enfurece após N segundos de luta (dano ×mult). */
-  bossEnrageAt: Infinity,
-  bossEnrageMult: 1,
+  bossEnrageAt: gp.enrageTime ?? Infinity,
+  bossEnrageMult: gp.enrageDamage ?? 1,
   /** Fração da redução de dano do jogador ignorada pelos ataques pesados do chefe. */
-  bossPierce: 0,
+  bossPierce: gp.pierce ?? 0,
 };
 
-function applyProposal(): void {
-  BALANCE.xp.exponent = 1.44;
-  RULES.hpPerMinuteSq = 0.02;
-  BALANCE.enemyScaling.hpPerMinute = 0.26;
-  BALANCE.enemyScaling.damagePerMinute = 0.11;
-  BALANCE.player.iFrames = 0.28;
-  BALANCE.combat.maxDamageReduction = 0.6;
-  RULES.apsSoftCap = 1.0;
-  RULES.apsSoftCapRate = 0.5;
-  RULES.voracityPerKill = 0.5;
-  RULES.voracityCapPerLevel = 2;
-  RULES.hemophagyOnDot = false;
-  RULES.hemophagyAmount = 0.8;
-  RULES.summonsGiveRewards = false;
-  RULES.bossEnrageAt = 150;
-  RULES.bossEnrageMult = 1.5;
-  RULES.bossPierce = 0.35;
-  DINOSAURS.trex.attack.maxTargets = 2;
+/** Valores anteriores à Etapa 1 (commit 2ba080f), para comparar antes × depois. */
+function applyOriginal(): void {
+  BALANCE.xp.exponent = 1.38;
+  RULES.hpPerMinuteSq = 0;
+  BALANCE.enemyScaling.hpPerMinute = 0.24;
+  BALANCE.enemyScaling.damagePerMinute = 0.07;
+  BALANCE.player.iFrames = 0.35;
+  BALANCE.combat.maxDamageReduction = 0.7;
+  RULES.apsSoftCap = Infinity;
+  RULES.apsSoftCapRate = 1;
+  RULES.voracityPerKill = 1;
+  RULES.voracityCapPerLevel = Infinity;
+  RULES.hemophagyOnDot = true;
+  RULES.hemophagyAmount = 1.2;
+  RULES.summonsGiveRewards = true;
+  RULES.bossEnrageAt = Infinity;
+  RULES.bossEnrageMult = 1;
+  RULES.bossPierce = 0;
+  DINOSAURS.trex.attack.maxTargets = 1;
 
   const alpha = ENEMIES.carnoAlpha;
-  alpha.hp = 4200;
-  alpha.armor = 20;
-  for (const k of ['damage', 'chargeDamage', 'shockDamage'] as const) alpha.params[k] = Math.round(alpha.params[k] * 1.25);
+  alpha.hp = 1800;
+  alpha.armor = 15;
+  Object.assign(alpha.params, { damage: 32, chargeDamage: 34, shockDamage: 26 });
 
   const g = ENEMIES.giganotosaurus;
-  g.hp = 24000;
-  g.armor = 35;
-  Object.assign(g.params, { biteDamage: 52, chargeDamage: 56, stompDamage: 42, roarDamage: 24, attackCooldown: 1.0 });
+  g.hp = 9500;
+  g.armor = 30;
+  Object.assign(g.params, { biteDamage: 38, chargeDamage: 40, stompDamage: 30, roarDamage: 16, attackCooldown: 1.25 });
 
-  // Sem "respiro" em 5:30 e pressão contínua durante o chefe.
   const phases = DIRECTOR_CONFIG.phases;
   const lull = phases.find((p) => p.start === 330);
-  if (lull) Object.assign(lull, { interval: 0.7, batch: [3, 5], maxAlive: 120 });
+  if (lull) Object.assign(lull, { interval: 1.0, batch: [2, 4], maxAlive: 80 });
   const bossPhase = phases.find((p) => p.start === 540);
-  if (bossPhase) Object.assign(bossPhase, { interval: 0.9, batch: [3, 4], maxAlive: 90 });
+  if (bossPhase) Object.assign(bossPhase, { interval: 1.4, batch: [2, 4], maxAlive: 45 });
 }
 
 const effApsMult = (m: number) => (m <= RULES.apsSoftCap ? m : RULES.apsSoftCap + (m - RULES.apsSoftCap) * RULES.apsSoftCapRate);
@@ -606,11 +610,11 @@ function main() {
   const args = process.argv.slice(2);
   const runs = Number(args.find((a) => /^\d+$/.test(a)) ?? 300);
   const jsonIdx = args.indexOf('--json');
-  const proposal = args.includes('--proposta');
-  if (proposal) applyProposal();
-  const out: Record<string, unknown> = { runs, proposal, assume: ASSUME, rules: RULES, results: {} };
+  const original = args.includes('--antes');
+  if (original) applyOriginal();
+  const out: Record<string, unknown> = { runs, original, assume: ASSUME, rules: RULES, results: {} };
 
-  console.log(`\n=== DinoMutation — simulação de balanceamento${proposal ? ' [PROPOSTA]' : ' [ATUAL]'} (${runs} runs por dino/estilo) ===`);
+  console.log(`\n=== DinoMutation — simulação de balanceamento${original ? ' [ANTES DA ETAPA 1]' : ' [ATUAL]'} (${runs} runs por dino/estilo) ===`);
   console.log(`Chefe: ${ENEMIES.giganotosaurus.hp} HP, armadura ${ENEMIES.giganotosaurus.armor}. DPS bruto do chefe: fase1 ${f(bossRawDps(1), 1)}/s, fase2 ${f(bossRawDps(2), 1)}/s`);
 
   for (const picker of ['smart', 'random'] as Picker[]) {

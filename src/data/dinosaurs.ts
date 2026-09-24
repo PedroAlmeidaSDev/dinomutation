@@ -70,7 +70,7 @@ export const DINOSAURS: Record<DinoId, DinoDef> = {
       name: 'Mordida',
       tags: ['bite', 'physical', 'melee'],
       coef: 1,
-      maxTargets: 1,
+      maxTargets: 2,
       knockback: 170,
       hitstop: 0.03,
       shake: 0.003,

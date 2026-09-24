@@ -6,8 +6,13 @@ export const BALANCE = {
 
   player: {
     /** Seconds of invulnerability after taking a hit. */
-    iFrames: 0.35,
+    iFrames: 0.28,
     basePickupRange: 125,
+    /**
+     * Diminishing returns on summed 'mult' bonuses: past `above`, the excess only counts at `rate`.
+     * Keeps attack-speed stacking (Reflexos + Frenesi + Predador) from running away.
+     */
+    softCaps: { attackSpeed: { above: 1.0, rate: 0.5 } },
     /** Momentum builds while moving in a consistent direction (Massa Imparável). */
     momentumBuildTime: 1.8,
     momentumAngleTolerance: 0.45,
@@ -16,7 +21,7 @@ export const BALANCE = {
   xp: {
     base: 4,
     perLevel: 3,
-    exponent: 1.38,
+    exponent: 1.44,
   },
 
   upgrades: {
@@ -37,14 +42,16 @@ export const BALANCE = {
     slow: { multiplier: 0.55 },
   },
 
+  /** Normal enemies: hp × (1 + a·m + b·m²), damage × (1 + c·m), m = run minutes. */
   enemyScaling: {
-    hpPerMinute: 0.24,
-    damagePerMinute: 0.07,
+    hpPerMinute: 0.26,
+    hpPerMinuteSq: 0.02,
+    damagePerMinute: 0.11,
   },
 
   combat: {
     armorConstant: 100,
-    maxDamageReduction: 0.7,
+    maxDamageReduction: 0.6,
     contactCooldown: 1.0,
     enemyArmorConstant: 100,
     hitFlashTime: 0.07,

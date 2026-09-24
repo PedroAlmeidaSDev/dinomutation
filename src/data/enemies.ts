@@ -64,22 +64,26 @@ export const ENEMIES: Record<EnemyId, EnemyDef> = {
   },
   carnoAlpha: {
     id: 'carnoAlpha', name: 'Carnotaurus Alfa', texture: 'en_carno', behavior: 'carnoAlpha', rank: 'elite',
-    hp: 1800, speed: 92, contactDamage: 16, armor: 15, radius: 42, xp: 90, mass: 0.92, scale: 1.65,
+    hp: 4200, speed: 92, contactDamage: 18, armor: 20, radius: 42, xp: 90, mass: 0.92, scale: 1.65,
     params: {
-      attackRange: 170, windup: 0.7, arc: 1.7, reach: 210, damage: 32, cooldown: 1.1,
-      chargeWindup: 0.9, chargeSpeed: 640, chargeTime: 0.75, chargeDamage: 34,
-      shockRadius: 210, shockWindup: 0.8, shockDamage: 26,
+      attackRange: 170, windup: 0.7, arc: 1.7, reach: 210, damage: 40, cooldown: 1.1,
+      chargeWindup: 0.9, chargeSpeed: 640, chargeTime: 0.75, chargeDamage: 43,
+      shockRadius: 210, shockWindup: 0.8, shockDamage: 33,
     },
   },
   giganotosaurus: {
     id: 'giganotosaurus', name: 'Giganotosaurus', texture: 'en_giga', behavior: 'giganotosaurus', rank: 'boss',
-    hp: 9500, speed: 96, contactDamage: 20, armor: 30, radius: 58, xp: 0, mass: 1, scale: 1,
+    hp: 24000, speed: 96, contactDamage: 24, armor: 35, radius: 58, xp: 0, mass: 1, scale: 1,
     params: {
-      biteRange: 230, biteArc: 1.5, biteDamage: 38, biteWindup: 0.65,
-      chargeWindup: 0.9, chargeSpeed: 760, chargeTime: 0.85, chargeDamage: 40,
-      roarRadius: 320, roarWindup: 0.85, roarDamage: 16, roarForce: 900,
-      stompRadius: 95, stompWindup: 1.0, stompDamage: 30, stompCount: 3,
-      summonCount: 8, attackCooldown: 1.25,
+      biteRange: 230, biteArc: 1.5, biteDamage: 52, biteWindup: 0.65,
+      chargeWindup: 0.9, chargeSpeed: 760, chargeTime: 0.85, chargeDamage: 56,
+      roarRadius: 320, roarWindup: 0.85, roarDamage: 24, roarForce: 900,
+      stompRadius: 95, stompWindup: 1.0, stompDamage: 42, stompCount: 3,
+      summonCount: 8, attackCooldown: 1.0,
+      /** Share of the player's damage reduction ignored by telegraphed attacks. */
+      pierce: 0.35,
+      /** Seconds into the fight before the boss enrages (damage ×enrageDamage, windups ×enrageWindup). */
+      enrageTime: 150, enrageDamage: 1.5, enrageWindup: 0.8,
     },
   },
 };

@@ -49,6 +49,8 @@ export interface PlayerHitRequest {
   knockForce?: number;
   /** No flash/shake (DoTs). */
   silent?: boolean;
+  /** 0..1 — share of the player's damage reduction this hit ignores (boss attacks). */
+  pierce?: number;
 }
 
 export interface IncomingCalc {
@@ -186,7 +188,7 @@ export class DamageSystem {
       reduction: player.stats.get('damageReduction'),
     };
     for (const mod of this.incoming) mod(calc);
-    const reduction = Math.min(BALANCE.combat.maxDamageReduction, armorReduction + calc.reduction);
+    const reduction = Math.min(BALANCE.combat.maxDamageReduction, armorReduction + calc.reduction) * (1 - (req.pierce ?? 0));
     const amount = Math.max(req.silent ? 0.2 : 1, calc.amount * (1 - reduction));
 
     const taken = player.health.damage(amount);

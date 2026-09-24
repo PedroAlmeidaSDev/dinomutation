@@ -1,7 +1,9 @@
 # Relatório de Balanceamento — DinoMutation
 
 > Branch: `feat/balanceamento` · Data: 24/09/2026
-> Ferramenta: `tools/balance/sim.ts` (`npm run balance` / `npm run balance:proposta`)
+> Ferramenta: `tools/balance/sim.ts` (`npm run balance` = jogo atual · `npm run balance:antes` = valores antigos)
+>
+> **Status:** ✅ Etapa 1 (§4) **aplicada** no código. As §3.x descrevem o estado *anterior* à Etapa 1.
 
 ## 1. Resumo
 
@@ -105,9 +107,9 @@ Jogador "inteligente", mediana de 400 runs:
 
 ## 4. Plano para aumentar a dificuldade
 
-As mudanças estão divididas em etapas independentes, cada uma pode ir em um PR separado. Os valores da **Etapa 1** são exatamente os do `applyProposal()` no simulador (`npm run balance:proposta`).
+As mudanças estão divididas em etapas independentes, cada uma pode ir em um PR separado.
 
-### Etapa 1 — Números (baixo risco, só dados + 3 regras pequenas)
+### Etapa 1 — Números (baixo risco, só dados + 3 regras pequenas) · ✅ aplicada
 
 | Área | Hoje | Proposta | Arquivo |
 |---|---|---|---|
@@ -128,6 +130,13 @@ As mudanças estão divididas em etapas independentes, cada uma pode ir em um PR
 | Ataques pesados do chefe | armadura normal | **ignoram 35% da redução do jogador** | `attacks.ts` (`resolveCone/Circle` com `pierce`) |
 | Fúria por tempo | — | **após 150 s de luta: dano ×1,5** | `Giganotosaurus.ts` |
 | Mordida do T-Rex | 1 alvo | **2 alvos** | `data/dinosaurs.ts` |
+
+Detalhes de implementação:
+- Retorno decrescente: `StatsComponent` aceita `softCaps` por stat (`BALANCE.player.softCaps`); hoje só `attackSpeed`.
+- Voracidade: `healFlat` ganhou o parâmetro opcional `maxPerSec` (janela de 1 s).
+- Lacaios: `Enemy.noRewards`, definido por `SpawnSystem.spawnAround` (padrão `true`). Sem DNA/drops em `Run.handleKill`, e `UpgradeSystem` ignora gatilhos `onKill` deles. A contagem de abates continua.
+- Perfuração: `PlayerHitRequest.pierce`, lida de `params.pierce` do inimigo em `resolveCone/resolveCircle` (só o Giganotosaurus tem).
+- Fúria: `params.enrageTime/enrageDamage/enrageWindup` no Giganotosaurus; `Enemy.damageMult` deixou de ser `readonly`.
 
 **Resultado simulado da Etapa 1** (400 runs, jogador inteligente → aleatório):
 
@@ -270,7 +279,7 @@ Cada **Era** dura 180 s:
 
 | # | Entrega | Esforço | Depende de |
 |---|---|---|---|
-| 1 | **Etapa 1**: números + Hemofagia só em golpe direto + teto da Voracidade + `noRewards` nos lacaios + teto de vel. de ataque | S | — |
+| 1 | ✅ **Etapa 1**: números + Hemofagia só em golpe direto + teto da Voracidade + `noRewards` nos lacaios + teto de vel. de ataque | S | — |
 | 2 | Telemetria de debug: log por minuto (nível, DPS real, dano recebido, cura, vivos) em `?debug`, para calibrar o simulador com playtests | S | — |
 | 3 | Giganotosaurus em 3 fases + janela de punição + fúria + perfuração | M | 1 |
 | 4 | Carnotaurus Alfa (frenesi, investida guiada, fuga) | S | 1 |
@@ -298,10 +307,10 @@ Cada **Era** dura 180 s:
 ## 8. Como reproduzir
 
 ```bash
-npm run balance                      # estado atual, 300 runs por dino/estilo
+npm run balance                      # jogo atual (com a Etapa 1), 300 runs por dino/estilo
 npm run balance -- 1000              # mais runs
-npm run balance:proposta             # aplica os valores da §4 (Etapa 1)
+npm run balance:antes                # valores anteriores à Etapa 1, para comparar
 npm run balance -- 400 --json out.json   # exporta a timeline completa em JSON
 ```
 
-Para testar um valor novo, mude o dado em `src/data/*` (ou em `applyProposal()` no simulador) e rode de novo. As premissas de habilidade do jogador ficam em `ASSUME`, e as regras que ainda não existem no jogo ficam em `RULES`.
+Para testar um valor novo, mude o dado em `src/data/*` e rode de novo. As premissas de habilidade do jogador ficam em `ASSUME`. As regras de mecânica (`RULES`) são lidas dos dados do jogo, e `applyOriginal()` guarda os valores antigos.

@@ -32,8 +32,11 @@ export class Enemy implements StatusHost {
   readonly radius: number;
   readonly speed: number;
   readonly armor: number;
-  readonly damageMult: number;
+  /** Mutable so bosses can enrage mid-fight. */
+  damageMult: number;
   readonly mass: number;
+  /** Boss minions: drop nothing and don't feed on-kill upgrades (Voracidade etc.). */
+  noRewards = false;
   dead = false;
   /** Set when the object has been removed from the world. */
   removed = false;
