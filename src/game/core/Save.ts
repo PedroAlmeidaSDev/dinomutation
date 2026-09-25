@@ -13,6 +13,8 @@ export interface SaveData {
   /** Highest Era reached (overall and per dinosaur). */
   bestEra: number;
   bestEraByDino: Partial<Record<DinoId, number>>;
+  /** Last patch-notes version the player has seen (see data/patchNotes.ts). */
+  seenPatch?: string;
 }
 
 const EMPTY: SaveData = { runs: 0, wins: 0, bestTime: 0, bestByDino: {}, endlessRuns: 0, bestEra: 0, bestEraByDino: {} };
@@ -36,6 +38,13 @@ export function writeSave(data: SaveData): void {
   } catch {
     // storage unavailable (private mode etc.) — progress simply isn't kept
   }
+}
+
+/** Marks the patch notes of `version` as seen so they aren't shown again. */
+export function markPatchSeen(version: string): void {
+  const s = loadSave();
+  s.seenPatch = version;
+  writeSave(s);
 }
 
 /** @param era Era reached in the endless mode (0 if the run never went endless). */

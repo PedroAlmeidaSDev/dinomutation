@@ -273,7 +273,7 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
   /** Armor converts into damage (Fortaleza Viva). */
   armorToDamage(rt, calc: DamageCalc) {
     const armor = Math.max(0, rt.ctx.player.stats.get('armor'));
-    calc.bonus += armor * num(rt, 'perArmor', 0.012) * rt.power();
+    calc.bonus += Math.min(num(rt, 'maxBonus', Infinity), armor * num(rt, 'perArmor', 0.012)) * rt.power();
   },
 
   /** Enemies touching the player get crushed (Colosso). */

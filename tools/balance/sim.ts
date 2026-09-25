@@ -87,6 +87,15 @@ function applyOriginal(): void {
   RULES.bossPierce = 0;
   RULES.bossPhases = 2;
   DINOSAURS.trex.attack.maxTargets = 1;
+  Object.assign(DINOSAURS.trex.stats, { maxHealth: 170, armor: 6, attackArc: 1.9 });
+  Object.assign(DINOSAURS.raptor.stats, { maxHealth: 125, damage: 10, armor: 5 });
+  Object.assign(DINOSAURS.triceratops.stats, { armor: 40, regen: 1.2 });
+  Object.assign(AB.roar, { cooldown: 10, coef: 0.6 });
+  Object.assign(AB.pounce, { cooldown: 3.5, coef: 2.2 });
+  Object.assign(AB.charge, { cooldown: 6.5, stun: 1.1 });
+  Object.assign(ABILITY_CD, { roar: 10, pounce: 3.5, charge: 6.5 });
+  Object.assign(tp, { armorScale: 0.8 });
+  Object.assign(fp, { perArmor: 0.012, maxBonus: Infinity });
 
   const alpha = ENEMIES.carnoAlpha;
   alpha.hp = 1800;
@@ -107,7 +116,14 @@ function applyOriginal(): void {
 
 const effApsMult = (m: number) => (m <= RULES.apsSoftCap ? m : RULES.apsSoftCap + (m - RULES.apsSoftCap) * RULES.apsSoftCapRate);
 
-const ABILITY_CD: Record<string, number> = { roar: 10, pounce: 3.5, charge: 6.5 };
+const AB = BALANCE.abilities;
+const ABILITY_CD: Record<string, number> = { roar: AB.roar.cooldown, pounce: AB.pounce.cooldown, charge: AB.charge.cooldown };
+const thorns = UPGRADE_BY_ID.espinhos.effects.find((e) => e.type === 'trigger');
+const fortaleza = UPGRADE_BY_ID.fortaleza_viva.effects.find((e) => e.type === 'trigger');
+const tp = (thorns?.type === 'trigger' ? thorns.params : undefined) ?? {};
+const fp = (fortaleza?.type === 'trigger' ? fortaleza.params : undefined) ?? {};
+/** Espinhos: dano refletido por golpe corpo a corpo recebido. */
+const thornsHit = (b: Build) => (Number(tp.flat ?? 10) + Math.max(0, b.stat('armor')) * Number(tp.armorScale ?? 0.8)) * b.power('espinhos');
 const GENERIC_TAGS = new Set(['physical', 'utility', 'health', 'heal', 'kill', 'ability', 'multi', 'aoe', 'mutation']);
 const RARITY_RANK: Record<Rarity, number> = { common: 0, rare: 1, legendary: 2 };
 
@@ -304,7 +320,7 @@ function singleTargetDps(b: Build, t: Target, killsPerSec: number, bleedingNearb
 
   // Bônus condicionais (aditivos).
   let bonus = x.tagBonus;
-  if (b.has('fortaleza_viva')) bonus += Math.max(0, b.stat('armor')) * 0.012 * pw('fortaleza_viva');
+  if (b.has('fortaleza_viva')) bonus += Math.min(Number(fp.maxBonus ?? Infinity), Math.max(0, b.stat('armor')) * Number(fp.perArmor ?? 0.012)) * pw('fortaleza_viva');
   if (b.has('toxinas_corrosivas')) bonus += 0.25 * pw('toxinas_corrosivas'); // veneno sempre ativo no chefe
   // Execução: bônus só nos últimos 30% de vida → média ponderada por HP.
   let execMult = 1;
@@ -353,13 +369,13 @@ function singleTargetDps(b: Build, t: Target, killsPerSec: number, bleedingNearb
   let cd = x.abilityCd;
   if (b.has('cacador_voraz')) cd = Math.max(0.5, cd / (1 + killsPerSec * 0.2 * pw('cacador_voraz') / 1));
   const momentum = b.has('massa_imparavel') ? 0.5 * pw('massa_imparavel') : 0; // ímpeto médio 50%
-  if (b.dino.ability === 'charge') dps += (dmg * 2.6 * (1 + momentum) * cm * af) / cd;
-  if (b.dino.ability === 'pounce') dps += (dmg * 2.2 * (1 + momentum) * (1 + b.stat('dmg_claw' as StatKey)) * cm * af) / cd;
-  if (b.dino.ability === 'roar') dps += (dmg * 0.6 * af) / cd;
+  if (b.dino.ability === 'charge') dps += (dmg * AB.charge.coef * (1 + momentum) * cm * af) / cd;
+  if (b.dino.ability === 'pounce') dps += (dmg * AB.pounce.coef * (1 + momentum) * (1 + b.stat('dmg_claw' as StatKey)) * cm * af) / cd;
+  if (b.dino.ability === 'roar') dps += (dmg * AB.roar.coef * af) / cd;
   if (b.has('impacto_sismico')) dps += (dmg * 1.4 * pw('impacto_sismico') * cm * af) / cd;
 
   // Espinhos: ~0.35 golpes corpo a corpo/s do chefe (esquivando).
-  if (b.has('espinhos')) dps += 0.35 * (10 + Math.max(0, b.stat('armor')) * 0.8) * pw('espinhos') * af;
+  if (b.has('espinhos')) dps += 0.35 * thornsHit(b) * af;
 
   return { dps, hitsPerSec: swings, hitDamage: hit * cm, critMult: cm };
 }
@@ -482,8 +498,11 @@ function killCapacity(b: Build, t: number, alive: number): number {
   if (b.has('cauda_clava')) kills += ((swings / 4) * aoeTargets) / hitsToKill(x.damage * 0.9 * pw('cauda_clava') * st.critMult);
   const cd = x.abilityCd;
   const lineTargets = Math.max(1, Math.min(8, alive / 10));
-  if (b.dino.ability === 'charge') kills += lineTargets / hitsToKill(x.damage * 2.6 * st.critMult) / cd;
-  if (b.dino.ability === 'pounce') kills += lineTargets / hitsToKill(x.damage * 2.2 * st.critMult) / cd;
+  if (b.dino.ability === 'charge') kills += lineTargets / hitsToKill(x.damage * AB.charge.coef * st.critMult) / cd;
+  if (b.dino.ability === 'pounce') kills += lineTargets / hitsToKill(x.damage * AB.pounce.coef * st.critMult) / cd;
+  if (b.dino.ability === 'roar') kills += Math.min(15, alive / 5) / hitsToKill(x.damage * AB.roar.coef) / cd;
+  // Espinhos: com a horda em volta, cada janela de iFrames reflete um golpe corpo a corpo.
+  if (b.has('espinhos')) kills += Math.min(1 / BALANCE.player.iFrames, alive / 20) / hitsToKill(thornsHit(b));
   if (b.has('impacto_sismico')) kills += Math.min(15, alive / 5) / hitsToKill(x.damage * 1.4 * pw('impacto_sismico')) / cd;
   if (b.has('matilha_fantasma')) {
     const pack = x.flags.has('packPersist');

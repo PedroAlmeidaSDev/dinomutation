@@ -187,8 +187,8 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'espinhos', name: 'Espinhos', rarity: 'common', maxLevel: 3,
     tags: ['armor', 'thorns', 'reflect'],
-    description: 'Inimigos que causam dano corpo a corpo recebem 10 + 80% da sua Armadura como dano.',
-    effects: [{ type: 'trigger', trigger: 'onDamageTaken', effect: 'thorns', params: { flat: 10, armorScale: 0.8 } }],
+    description: 'Inimigos que causam dano corpo a corpo recebem 10 + 50% da sua Armadura como dano.',
+    effects: [{ type: 'trigger', trigger: 'onDamageTaken', effect: 'thorns', params: { flat: 10, armorScale: 0.5 } }],
     visual: ['spikes'],
   },
   {
@@ -377,10 +377,10 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'fortaleza_viva', name: 'Fortaleza Viva', rarity: 'legendary', maxLevel: 1,
     tags: ['armor'],
-    description: 'Cada ponto de Armadura concede +1.2% de dano. +10 armadura.',
+    description: 'Cada ponto de Armadura concede +0.8% de dano (máx. +80%). +10 armadura.',
     requires: { ownedTags: ['armor'] },
     effects: [
-      { type: 'trigger', trigger: 'modifyDamage', effect: 'armorToDamage', params: { perArmor: 0.012 } },
+      { type: 'trigger', trigger: 'modifyDamage', effect: 'armorToDamage', params: { perArmor: 0.008, maxBonus: 0.8 } },
       { type: 'stat', stat: 'armor', mode: 'add', value: 10 },
     ],
     visual: ['plates', 'spikes'],
