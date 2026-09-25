@@ -20,6 +20,30 @@ export interface PatchNote {
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: '0.2.0',
+    date: '25/09/2026',
+    title: 'O Covil e as Dificuldades',
+    sections: [
+      {
+        title: 'COVIL',
+        color: '#e0a0ff',
+        items: [
+          'Toda run rende FÓSSEIS, mesmo quando você perde. Gaste no COVIL (menu) em melhorias permanentes para cada dino: vida, dano, armadura, DNA e um item exclusivo.',
+          'Cada dino ganha MAESTRIA jogando. Ela libera e melhora 3 passivas únicas e fortalece a habilidade especial (+dano, −recarga).',
+        ],
+      },
+      {
+        title: 'DIFICULDADES',
+        color: '#8ad06a',
+        items: [
+          'Quatro dificuldades por dino: Filhote, Normal, Predador e Extinção. Comece no Filhote; vencer uma libera a próxima para aquele dino.',
+          'Dificuldades maiores rendem mais Fósseis (até ×1,8), e a 1ª vitória em cada uma dá um bônus (60 a 400 Fósseis).',
+          'Já venceu antes desta versão? O Normal já vem liberado para todos os dinos.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.1.2',
     date: '25/09/2026',
     title: 'Ácido sob controle',

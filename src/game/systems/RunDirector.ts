@@ -1,4 +1,5 @@
 import { BALANCE } from '../../data/balance';
+import { DIFFICULTY_BY_ID } from '../../data/difficulty';
 import { DIRECTOR_CONFIG, type DirectorEvent, type SpawnPhase } from '../../data/director';
 import type { EnemyId, EnemyRank } from '../../data/enemies';
 import type { RunContext } from '../core/RunContext';
@@ -38,8 +39,19 @@ export class RunDirector {
     return this.elapsed / 60;
   }
 
-  /** Enemy stat multipliers. Story: normal enemies grow over time, elite/boss are fixed. */
+  /**
+   * Enemy stat multipliers. Story: normal enemies grow over time, elite/boss are fixed.
+   * The run's difficulty multiplies on top (also in the endless mode).
+   */
   scaling(rank: EnemyRank = 'normal'): EnemyScaling {
+    const d = DIFFICULTY_BY_ID[this.ctx.run.difficulty];
+    const base = this.baseScaling(rank);
+    return rank === 'boss'
+      ? { ...base, hpMult: base.hpMult * d.bossHp, damageMult: base.damageMult * d.bossDamage }
+      : { ...base, hpMult: base.hpMult * d.enemyHp, damageMult: base.damageMult * d.enemyDamage };
+  }
+
+  private baseScaling(rank: EnemyRank): EnemyScaling {
     if (this.endless) return this.endless.scaling(rank);
     if (rank === 'boss') return { ...BALANCE.bossScaling };
     if (rank !== 'normal') return { hpMult: 1, damageMult: 1 };

@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { DIFFICULTY_BY_ID } from '../../data/difficulty';
 import { DINOSAURS } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { RunState } from '../core/RunState';
@@ -58,7 +59,7 @@ export abstract class ResultScene extends Phaser.Scene {
     panel.strokeRoundedRect(600, 170, 530, 390, 12);
 
     const rows: [string, string][] = [
-      ['DINOSSAURO', dino.name],
+      ['DINOSSAURO', `${dino.name} · ${DIFFICULTY_BY_ID[s.difficulty].name}`],
       ['TEMPO SOBREVIVIDO', formatTime(s.elapsedTime)],
       ['NÍVEL', `${s.level}`],
       ['ABATES', `${s.kills}`],
@@ -86,9 +87,10 @@ export abstract class ResultScene extends Phaser.Scene {
 
     this.drawRewards(s.dinosaur, save.mastery[s.dinosaur] ?? 0, rewards);
 
-    button(this, GAME_WIDTH / 2 - 150, GAME_HEIGHT - 80, 'JOGAR NOVAMENTE', () => this.scene.start('Run', { dino: s.dinosaur }), { width: 280 });
+    const again = { dino: s.dinosaur, difficulty: s.difficulty };
+    button(this, GAME_WIDTH / 2 - 150, GAME_HEIGHT - 80, 'JOGAR NOVAMENTE', () => this.scene.start('Run', again), { width: 280 });
     button(this, GAME_WIDTH / 2 + 150, GAME_HEIGHT - 80, 'MENU', () => this.scene.start('Menu'), { width: 220, color: 0x7a8a6a });
-    this.input.keyboard?.once('keydown-ENTER', () => this.scene.start('Run', { dino: s.dinosaur }));
+    this.input.keyboard?.once('keydown-ENTER', () => this.scene.start('Run', again));
     this.cameras.main.fadeIn(400);
   }
 
@@ -101,7 +103,7 @@ export abstract class ResultScene extends Phaser.Scene {
     g.lineStyle(2, COLORS.accent, 0.8);
     g.strokeRoundedRect(150, 532, 980, 68, 12);
 
-    text(this, 175, 540, 'FÓSSEIS', 14, COLORS.muted, true);
+    text(this, 175, 540, r.firstWinBonus ? `FÓSSEIS · 1ª VITÓRIA +${r.firstWinBonus}` : 'FÓSSEIS', 14, r.firstWinBonus ? '#6aff8a' : COLORS.muted, true);
     const fossils = text(this, 175, 558, '+0', 28, COLORS.accentText, true);
     this.tweens.addCounter({
       from: 0, to: r.fossils, duration: 900, delay: 300, ease: 'Cubic.easeOut',
@@ -127,10 +129,11 @@ export abstract class ResultScene extends Phaser.Scene {
     this.tweens.addCounter({ from: fillFrom, to: fillTo, duration: 900, delay: 300, ease: 'Cubic.easeOut', onUpdate: (t) => drawBar(t.getValue() ?? fillTo) });
     text(this, barX + barW + 8, 564, prog.needed > 0 ? `${prog.into}/${prog.needed}` : 'MÁX.', 14, '#ffffff', true);
 
-    if (r.unlocks.length > 0) {
-      const more = r.unlocks.length > 2 ? ` +${r.unlocks.length - 2}` : '';
+    const unlocks = r.unlockedDifficulty ? [`Dificuldade ${r.unlockedDifficulty}`, ...r.unlocks] : r.unlocks;
+    if (unlocks.length > 0) {
+      const more = unlocks.length > 2 ? ` +${unlocks.length - 2}` : '';
       text(this, 850, 540, 'DESBLOQUEADO!', 14, '#6aff8a', true);
-      text(this, 850, 560, r.unlocks.slice(0, 2).join('\n') + more, 13, '#ffffff', true);
+      text(this, 850, 560, unlocks.slice(0, 2).join('\n') + more, 13, '#ffffff', true);
     } else {
       text(this, 850, 548, 'Gaste fósseis no COVIL\npara fortalecer seus dinos.', 14, COLORS.muted);
     }
@@ -223,7 +226,7 @@ function runReport(s: RunState, rows: DamageRow[]): string {
   const outcome = s.victory ? (s.endless ? `Vitória · Era ${s.era}` : 'Vitória') : 'Derrota';
   const total = rows.reduce((a, r) => a + r.amount, 0);
   return [
-    `DinoMutation v${CURRENT_PATCH.version} · ${DINOSAURS[s.dinosaur].name} · ${outcome} · ${formatTime(s.elapsedTime)} · nível ${s.level} · ${s.kills} abates`,
+    `DinoMutation v${CURRENT_PATCH.version} · ${DINOSAURS[s.dinosaur].name} (${DIFFICULTY_BY_ID[s.difficulty].name}) · ${outcome} · ${formatTime(s.elapsedTime)} · nível ${s.level} · ${s.kills} abates`,
     `Dano recebido: ${Math.round(s.damageTaken).toLocaleString('pt-BR')}`,
     `Mutações: ${s.upgrades.map((u) => `${u.name}${u.level > 1 ? ` ${u.level}` : ''}`).join(', ') || '—'}`,
     `Dano por fonte (total ${Math.round(total).toLocaleString('pt-BR')}):`,
