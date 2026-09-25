@@ -41,6 +41,7 @@ export class RunDirector {
   /** Enemy stat multipliers. Story: normal enemies grow over time, elite/boss are fixed. */
   scaling(rank: EnemyRank = 'normal'): EnemyScaling {
     if (this.endless) return this.endless.scaling(rank);
+    if (rank === 'boss') return { ...BALANCE.bossScaling };
     if (rank !== 'normal') return { hpMult: 1, damageMult: 1 };
     return this.storyScaling(this.minutes);
   }

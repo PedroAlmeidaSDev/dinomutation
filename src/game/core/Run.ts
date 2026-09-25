@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import { BALANCE } from '../../data/balance';
 import { ARENA_OBSTACLES } from '../../data/arena';
 import { DINOSAURS, type DinoId } from '../../data/dinosaurs';
+import { metaLoadout } from './Save';
 import { AbilitySystem } from '../abilities/AbilitySystem';
 import { AutoAttackSystem } from '../combat/AutoAttackSystem';
 import { DamageSystem } from '../combat/DamageSystem';
@@ -73,6 +74,8 @@ export class Run implements RunContext {
     this.autoAttack = new AutoAttackSystem(this);
 
     this.bus.on('onKill', ({ enemy }) => this.handleKill(enemy));
+    // Shop levels and mastery passives bought outside the run.
+    this.upgrades.applyMeta(metaLoadout(dinoId));
   }
 
   // ─────────────────────────── RunContext helpers ───────────────────────────

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { DINOSAURS, DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { loadSave } from '../core/Save';
+import { masteryLevel } from '../../data/meta';
 import { formatTime } from '../../utils/math';
 import { centerDesign } from '../ui/layout';
 import { prefersTouch } from '../ui/TouchControls';
@@ -18,9 +19,9 @@ export class CharacterSelectScene extends Phaser.Scene {
     super('CharacterSelect');
   }
 
-  create(): void {
+  create(data?: { dino?: DinoId }): void {
     this.cards = [];
-    this.selected = loadSave().lastDino ?? 'trex';
+    this.selected = data?.dino ?? loadSave().lastDino ?? 'trex';
     centerDesign(this, [
       this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.5),
       this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.55),
@@ -33,7 +34,7 @@ export class CharacterSelectScene extends Phaser.Scene {
     const save = loadSave();
     DINO_ORDER.forEach((id, i) => {
       const x = GAME_WIDTH / 2 + (i - 1) * (CARD_W + 30);
-      this.makeCard(id, x, 100 + CARD_H / 2, save.bestByDino[id]);
+      this.makeCard(id, x, 100 + CARD_H / 2, save.bestByDino[id], masteryLevel(save.mastery[id] ?? 0));
     });
 
     button(this, GAME_WIDTH / 2 + 130, GAME_HEIGHT - 50, 'INICIAR RUN', () => this.start(), { width: 280, height: 58, fontSize: 24 });
@@ -61,14 +62,14 @@ export class CharacterSelectScene extends Phaser.Scene {
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Run', { dino: this.selected }));
   }
 
-  private makeCard(id: DinoId, x: number, y: number, best?: number): void {
+  private makeCard(id: DinoId, x: number, y: number, best: number | undefined, mastery: number): void {
     const d = DINOSAURS[id];
     const bg = this.add.graphics();
     const sprite = this.add.image(0, -CARD_H / 2 + 80, d.texture).setScale(1.5).setRotation(-Math.PI / 2);
     const name = this.add.text(0, -CARD_H / 2 + 150, d.name, {
       fontFamily: FONT_BOLD, fontSize: '28px', color: '#ffffff', stroke: '#000000', strokeThickness: 6,
     }).setOrigin(0.5);
-    const title = text(this, 0, -CARD_H / 2 + 184, d.title, 16, hex(d.accentColor), true).setOrigin(0.5);
+    const title = text(this, 0, -CARD_H / 2 + 184, `${d.title}  ·  Maestria ${mastery}`, 16, hex(d.accentColor), true).setOrigin(0.5);
     const desc = this.add.text(0, -CARD_H / 2 + 210, d.description, {
       fontFamily: FONT, fontSize: '15px', color: COLORS.text, align: 'center', wordWrap: { width: CARD_W - 40 },
     }).setOrigin(0.5, 0);
