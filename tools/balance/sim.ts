@@ -9,6 +9,7 @@
  * Uso:  node --experimental-strip-types tools/balance/sim.ts [runs] [--antes] [--json saida.json]
  *       [--meta nenhum|inicial|medio|max]   perfil fixo de meta-progressão (loja + passivas)
  *       [--carreira [carreiras]]            joga runs seguidas acumulando Fósseis/Maestria desde zero
+ *       [--analise]                         vitória por dino, build e mutação (jogador médio)
  */
 import { BALANCE, xpToNext, type Rarity } from '../../src/data/balance.ts';
 import { DIRECTOR_CONFIG } from '../../src/data/director.ts';
@@ -779,6 +780,56 @@ function careerMain(careers: number, maxRuns: number): void {
   }
 }
 
+/**
+ * Análise: taxa de vitória por dino, build (tag principal) e mutação, com o jogador médio
+ * (builds variadas). É correlação: mutações boas tendem a aparecer junto com outras boas.
+ */
+function analysisMain(runs: number, metaProfile: string): void {
+  console.log(`\n=== Análise de vitórias · jogador médio · meta: ${metaProfile} · ${runs} runs por dino ===`);
+  type Row = { dino: DinoId; win: boolean; tag: string; ups: string[] };
+  const rows: Row[] = [];
+  for (const dino of DINO_ORDER) {
+    const meta = profileLoadout(dino, metaProfile);
+    for (let i = 0; i < runs; i++) {
+      const r = simulateRun(dino, 'mixed', meta);
+      rows.push({ dino, win: r.bossWin !== 'lose', tag: r.primaryTag ?? '—', ups: r.upgrades.map((u) => u.split(':')[0]) });
+    }
+  }
+  const rate = (xs: Row[]) => (xs.length ? xs.filter((r) => r.win).length / xs.length : 0);
+  const base = rate(rows);
+  console.log(`Geral: ${f(base * 100)}% de vitórias`);
+
+  console.log('\n── Por dino ──');
+  for (const d of DINO_ORDER) {
+    const xs = rows.filter((r) => r.dino === d);
+    console.log(`  ${DINOSAURS[d].name.padEnd(14)} ${f(rate(xs) * 100).padStart(3)}%`);
+  }
+
+  console.log('\n── Por build (tag principal no fim da run; mín. 3% das runs do dino) ──');
+  for (const d of DINO_ORDER) {
+    const xs = rows.filter((r) => r.dino === d);
+    const tags = new Map<string, Row[]>();
+    for (const r of xs) tags.set(r.tag, [...(tags.get(r.tag) ?? []), r]);
+    const list = [...tags.entries()].filter(([, v]) => v.length >= xs.length * 0.03).sort((a, b) => rate(b[1]) - rate(a[1]));
+    console.log(`  ${DINOSAURS[d].name}: ${list.map(([t, v]) => `${t} ${f(rate(v) * 100)}% (${f((v.length / xs.length) * 100)}% das runs)`).join(' · ')}`);
+  }
+
+  console.log('\n── Mutações: vitória com × sem (por dino; mín. 5% e máx. 95% de presença) ──');
+  for (const d of DINO_ORDER) {
+    const xs = rows.filter((r) => r.dino === d);
+    const ids = new Set(xs.flatMap((r) => r.ups));
+    const stats = [...ids].map((id) => {
+      const withIt = xs.filter((r) => r.ups.includes(id));
+      const without = xs.filter((r) => !r.ups.includes(id));
+      return { id, share: withIt.length / xs.length, w: rate(withIt), wo: rate(without) };
+    }).filter((s) => s.share >= 0.05 && s.share <= 0.95).sort((a, b) => (b.w - b.wo) - (a.w - a.wo));
+    const fmt = (s: typeof stats[number]) => `${UPGRADE_BY_ID[s.id]?.name ?? s.id} ${f(s.w * 100)}% vs ${f(s.wo * 100)}% (${s.w - s.wo >= 0 ? '+' : ''}${f((s.w - s.wo) * 100)})`;
+    console.log(`  ${DINOSAURS[d].name}`);
+    console.log(`    melhores: ${stats.slice(0, 6).map(fmt).join(' · ')}`);
+    console.log(`    piores:   ${stats.slice(-4).reverse().map(fmt).join(' · ')}`);
+  }
+}
+
 function main() {
   const args = process.argv.slice(2);
   const runs = Number(args.find((a) => /^\d+$/.test(a)) ?? 300);
@@ -792,6 +843,11 @@ function main() {
     : original ? [1, 1] : [BALANCE.bossScaling.hpMult, BALANCE.bossScaling.damageMult];
   applyBossScaling(hpM, dmgM);
   if (bossIdx >= 0) console.log(`[varredura] chefe: ${ENEMIES.giganotosaurus.hp} HP, dano ×${dmgM}`);
+  if (args.includes('--analise')) {
+    const metaIdx = args.indexOf('--meta');
+    analysisMain(runs, metaIdx >= 0 ? args[metaIdx + 1] ?? 'nenhum' : 'medio');
+    return;
+  }
   if (args.includes('--carreira')) {
     careerMain(Number(args.find((a) => /^\d+$/.test(a)) ?? 150), 40);
     return;
