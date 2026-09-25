@@ -1,3 +1,4 @@
+import type { DifficultyId } from '../../data/difficulty';
 import type { DinoId } from '../../data/dinosaurs';
 
 export interface RunUpgradeRecord {
@@ -10,6 +11,7 @@ export interface RunUpgradeRecord {
 /** Everything the result screens need to know about a run. */
 export interface RunState {
   dinosaur: DinoId;
+  difficulty: DifficultyId;
   level: number;
   xp: number;
   elapsedTime: number;
@@ -33,9 +35,10 @@ export interface RunState {
   mutations: string[];
 }
 
-export function createRunState(dinosaur: DinoId): RunState {
+export function createRunState(dinosaur: DinoId, difficulty: DifficultyId = 'normal'): RunState {
   return {
     dinosaur,
+    difficulty,
     level: 1,
     xp: 0,
     elapsedTime: 0,

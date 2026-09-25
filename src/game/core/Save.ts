@@ -1,3 +1,4 @@
+import { DIFFICULTIES, DIFFICULTY_BY_ID, difficultyIndex, highestUnlocked, type DifficultyId } from '../../data/difficulty';
 import { DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import {
   fossilsForRun, loadoutFor, masteryLevel, masteryXpForRun, unlocksAtMastery, type MetaBonus, type ShopItemDef,
@@ -25,12 +26,16 @@ export interface SaveData {
   bestEraByDino: Partial<Record<DinoId, number>>;
   /** Last patch-notes version the player has seen (see data/patchNotes.ts). */
   seenPatch?: string;
+  /** Index in DIFFICULTIES of the highest difficulty beaten, per dinosaur (missing = none). */
+  cleared: Partial<Record<DinoId, number>>;
+  /** Last difficulty picked, per dinosaur. */
+  difficulty: Partial<Record<DinoId, DifficultyId>>;
 }
 
 function empty(): SaveData {
   return {
     runs: 0, wins: 0, bestTime: 0, bestByDino: {}, fossils: 0, mastery: {}, shop: {},
-    endlessRuns: 0, bestEra: 0, bestEraByDino: {},
+    endlessRuns: 0, bestEra: 0, bestEraByDino: {}, cleared: {}, difficulty: {},
   };
 }
 
@@ -39,7 +44,11 @@ export function loadSave(): SaveData {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty();
     // Older saves (before meta-progression / endless mode) simply lack the new fields.
-    return { ...empty(), ...JSON.parse(raw) } as SaveData;
+    const parsed = JSON.parse(raw) as Partial<SaveData>;
+    const save = { ...empty(), ...parsed } as SaveData;
+    // Before difficulties: players who already won skip Filhote (Normal unlocked for every dino).
+    if (!parsed.cleared && save.wins > 0) for (const d of DINO_ORDER) save.cleared[d] = 0;
+    return save;
   } catch {
     return empty();
   }
@@ -61,7 +70,12 @@ export function markPatchSeen(version: string): void {
 }
 
 export interface RunRewards {
+  /** Total Fósseis, including `firstWinBonus`. */
   fossils: number;
+  /** First win on this difficulty with this dinosaur (0 = not a first win). */
+  firstWinBonus: number;
+  /** Difficulty unlocked by this win, if any. */
+  unlockedDifficulty?: string;
   masteryXp: number;
   levelBefore: number;
   levelAfter: number;
@@ -84,7 +98,18 @@ export function recordRun(state: RunState, victory: boolean): { save: SaveData; 
     s.bestEraByDino[dino] = Math.max(s.bestEraByDino[dino] ?? 0, era);
   }
 
-  const fossils = fossilsForRun(state);
+  const diff = DIFFICULTY_BY_ID[state.difficulty];
+  let fossils = fossilsForRun({ ...state, fossilMult: diff.fossilMult });
+  let firstWinBonus = 0;
+  let unlockedDifficulty: string | undefined;
+  const idx = difficultyIndex(state.difficulty);
+  if (victory && idx > clearedIndex(s, dino)) {
+    s.cleared[dino] = idx;
+    firstWinBonus = diff.firstWinBonus;
+    fossils += firstWinBonus;
+    const next = DIFFICULTIES[idx + 1];
+    if (next) unlockedDifficulty = next.name;
+  }
   const masteryXp = masteryXpForRun(state);
   const xpBefore = s.mastery[dino] ?? 0;
   const levelBefore = masteryLevel(xpBefore);
@@ -95,7 +120,31 @@ export function recordRun(state: RunState, victory: boolean): { save: SaveData; 
   for (let l = levelBefore + 1; l <= levelAfter; l++) unlocks.push(...unlocksAtMastery(dino, l));
 
   writeSave(s);
-  return { save: s, rewards: { fossils, masteryXp, levelBefore, levelAfter, unlocks } };
+  return { save: s, rewards: { fossils, firstWinBonus, unlockedDifficulty, masteryXp, levelBefore, levelAfter, unlocks } };
+}
+
+// ─────────────────────────── difficulty ───────────────────────────
+
+/** Index of the highest difficulty beaten with `dino` (-1 = none). */
+export function clearedIndex(s: SaveData, dino: DinoId): number {
+  return s.cleared[dino] ?? -1;
+}
+
+export function isDifficultyUnlocked(s: SaveData, dino: DinoId, id: DifficultyId): boolean {
+  return difficultyIndex(id) <= highestUnlocked(clearedIndex(s, dino));
+}
+
+/** Last difficulty picked for `dino`, or the highest unlocked one. */
+export function preferredDifficulty(s: SaveData, dino: DinoId): DifficultyId {
+  const last = s.difficulty[dino];
+  if (last && isDifficultyUnlocked(s, dino, last)) return last;
+  return DIFFICULTIES[highestUnlocked(clearedIndex(s, dino))].id;
+}
+
+export function rememberDifficulty(dino: DinoId, id: DifficultyId): void {
+  const s = loadSave();
+  s.difficulty[dino] = id;
+  writeSave(s);
 }
 
 // ─────────────────────────── shop ───────────────────────────
@@ -104,12 +153,11 @@ export function shopLevel(s: SaveData, dino: DinoId, itemId: string): number {
   return s.shop[dino]?.[itemId] ?? 0;
 }
 
-export type PurchaseStatus = 'ok' | 'maxed' | 'locked' | 'poor';
+export type PurchaseStatus = 'ok' | 'maxed' | 'poor';
 
 export function purchaseStatus(s: SaveData, dino: DinoId, item: ShopItemDef): PurchaseStatus {
   const lvl = shopLevel(s, dino, item.id);
   if (lvl >= item.costs.length) return 'maxed';
-  if (masteryLevel(s.mastery[dino] ?? 0) < item.mastery[lvl]) return 'locked';
   if (s.fossils < item.costs[lvl]) return 'poor';
   return 'ok';
 }

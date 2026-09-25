@@ -1,61 +1,66 @@
 # Meta-progressão × dificuldade — DinoMutation
 
-> Branch: `feat/meta-progressao` (inclui `feat/balanceamento` até `897a91c`) · Data: 24/09/2026
-> Ferramenta: `tools/balance/sim.ts` — `npm run balance -- --meta nenhum|inicial|medio|max` e `npm run balance:carreira`
+> Versão 0.2.0 · Branch: `feat/dificuldades` · Data: 25/09/2026
+> Ferramenta: `tools/balance/sim.ts` — `npm run balance -- --meta nenhum|inicial|medio|max --dificuldade filhote|normal|predador|extincao` e `npm run balance:carreira`
 
 ## Objetivo
 
-Vencer **sem nenhuma melhoria** deve ser bem difícil. As primeiras vitórias devem exigir tempo de jogo: acumular Fósseis/Maestria e comprar melhorias no Covil.
+- **Prender o jogador novo:** a 1ª vitória precisa vir cedo (Filhote) e as primeiras compras no Covil precisam dar sensação de evolução logo nas primeiras runs.
+- **Não ficar fácil demais:** o Normal continua sendo o desafio de referência, e Predador e Extinção são o teto para quem já tem tudo.
 
-## O que o simulador passou a modelar
+## Sistema
 
-- **Bônus da loja** (atributos por nível) e **passivas de maestria** entram no build (`loadoutFor` em `src/data/meta.ts`, a mesma função que o jogo usa).
-- **Jogador médio** (`mixed`): cada escolha de mutação tem 50% de chance de ser a ótima e 50% de ser aleatória. Fica entre o "experiente" (sempre ótima) e o "iniciante" (sempre aleatória).
-- **Carreira** (`--carreira`): começa com zero Fósseis e joga até 40 runs com o mesmo dino. Cada run rende as recompensas reais, e o jogador compra sempre o item mais barato já liberado.
-- **`--chefe hp,dano`**: substitui `BALANCE.bossScaling` para varrer valores.
+### Fósseis e loja (Covil)
+- Fósseis por run: **15/min**, 1 a cada **60** abates, elite **40**, chefe 120, multiplicados pela dificuldade (`fossilMult`).
+- 5 itens por dino (4 compartilhados + 1 exclusivo), 5 níveis cada. Custos **30 / 70 / 150 / 300 / 480** (1.030 por item, 5.150 por dino).
+- **A Maestria não trava a loja.** O preço é o único limite.
 
-## Diagnóstico (antes deste ajuste)
+### Maestria (`MASTERY_TRACK` em `src/data/meta.ts`)
+A Maestria evolui o próprio dino. As passivas usam o `power` do motor de upgrades: rank I = ×1, rank II = ×1,5 (o Alfa da Matilha usa ×2, porque o número de fantasmas é inteiro). A habilidade ganha **+15% de dano** (`dmg_roar` / `dmg_pounce` / `dmg_charge`) e **5% de redução de recarga** por nível.
 
-Sem nenhuma melhoria, o jogador experiente vencia 92–99% das runs e o médio 43–81%. Com a loja cheia (versão de 3 níveis), o experiente vencia até 92% das runs **sem nem esquivar**. Ou seja, o jogo já era fácil demais, e a meta-progressão deixaria ainda mais.
+| Maestria | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|
+| Libera | Passiva 1 | Habilidade I | Passiva 2 | Passiva 1 → II | Habilidade II | Passiva 3 | Passiva 2 → II | Habilidade III | Passiva 3 → II |
 
-## Ajustes
+### Dificuldades (`src/data/difficulty.ts`)
+Os multiplicadores entram em `RunDirector.scaling()` por cima do escalonamento normal e também valem na Era Sem Fim. O Normal é o jogo de referência (×1).
 
-| | Antes | Agora |
-|---|---|---|
-| Chefe (`BALANCE.bossScaling`) | — | vida ×1,7 · dano ×1,9 (aplicado no spawn; `enemies.ts` intacto) |
-| Loja | 3 níveis, custos 60/150/300, maestria 1/3/6 | **5 níveis**, custos 50/120/220/360/520, maestria 1/2/4/6/8 (1.270 🦴 por item, 6.350 por dino) |
-| Vida / Dano por nível | +6% / +5% | +12% / +12% |
-| Armadura por nível | +4 | +5 |
-| Item exclusivo | Raptor: vel. de ataque · Tri: recarga | Raptor: **+8% dano de garra** · Tri: **+8% dano de chifrada** (vel. de ataque esbarrava no limite de retorno decrescente; recarga quase não rendia) |
-| Fósseis por run | 8/min, 1 a cada 100 abates, elite 30, chefe 80 | 10/min, 1 a cada 100 abates, elite 30, **chefe 120** (acelerado após playtest: ganho estava lento) |
-| XP de maestria | 1 a cada 3 s | 1 a cada 4 s |
+| | Inimigos e elite (vida / dano) | Chefe (vida / dano) | Fósseis | Bônus da 1ª vitória | Liberação |
+|---|---|---|---|---|---|
+| **Filhote** | ×0,75 / ×0,7 | ×0,6 / ×0,55 | ×0,75 | 60 | desde o início |
+| **Normal** | ×1 | ×1 | ×1 | 150 | vencer Filhote |
+| **Predador** | ×1,3 / ×1,25 | ×1,45 / ×1,35 | ×1,4 | 250 | vencer Normal |
+| **Extinção** | ×1,5 / ×1,45 | ×1,8 / ×1,6 | ×1,8 | 400 | vencer Predador |
 
-## Resultado — perfis fixos (150 runs por dino)
+- O progresso é **por dino** (`SaveData.cleared`). A última dificuldade escolhida fica salva por dino (`SaveData.difficulty`).
+- **Saves antigos:** quem já tinha alguma vitória recebe o Filhote como vencido em todos os dinos, ou seja, o Normal já vem liberado.
 
-% de vitórias esquivando 60% dos ataques do chefe (entre parênteses: vence até tankando).
+## Resultado — perfis fixos (200 runs por dino)
 
-| Meta | Experiente (T-Rex / Raptor / Tri) | Médio | Iniciante |
+% de vitórias esquivando 60% dos ataques do chefe. Ordem: T-Rex / Raptor / Tri.
+
+| Cenário | Experiente | Médio | Iniciante |
 |---|---|---|---|
-| **nenhuma** | 28 / 26 / 26 (0) | **2 / 5 / 7** | 0 / 0 / 0 |
-| inicial (itens nv 1, M3) | 51 / 47 / 60 | 12 / 14 / 16 | 1 / 1 / 1 |
-| média (itens nv 2, M6) | 82 / 61 / 86 | 21 / 18 / 33 | 1 / 3 / 1 |
-| máxima (itens nv 5, M10) | 93 / 80 / 95 (até 9 tankando) | 39 / 33 / 63 | 4 / 9 / 13 |
+| Filhote, sem melhorias (1ª run de um jogador novo) | 100 / 99 / 100 | 89 / 84 / 78 | 29 / 32 / 25 |
+| Normal, sem melhorias | 38 / 44 / 20 | 5 / 11 / 2 | 1 / 1 / 0 |
+| Extinção, tudo no máximo (loja 5/5, M10) | 45 / 33 / 13 | 8 / 9 / 2 | — |
 
-A luta contra o chefe dura ~80–100 s sem melhorias (experiente) e ~50–65 s com a loja cheia.
+## Resultado — carreira (40 carreiras × 40 runs, do zero, sempre na maior dificuldade liberada)
 
-## Resultado — carreira (desde zero, até 40 runs)
+Run da 1ª vitória em cada dificuldade (mediana; entre parênteses, horas de jogo até lá).
 
-| Jogador | 1ª vitória (run, p25/p50/p75) | Horas até a 1ª (p50) | Vitórias nas runs 1–3 → 26–40 |
-|---|---|---|---|
-| Experiente | T-Rex 1/2/3 · Raptor 1/3/5 · Tri 1/2/3 | 0,3–0,5 h | 25–52% → 97–100% |
-| **Médio** | T-Rex **2/4/7** · Raptor **5/7/11** · Tri **4/5/8** | **0,6–1,2 h** | 4–19% → 63–90% |
-| Iniciante | Tri 15/16/21 · Raptor 13/19/28 · T-Rex 19/26/33 | 2,7–4,0 h | 0–1% → 7–34% |
+| Jogador | Filhote | Normal | Predador | Extinção |
+|---|---|---|---|---|
+| Experiente | 1 (0,2 h) | 2 (0,3 h) | 4–7 (0,7–1,2 h) | 7–15 (1,2–2,5 h) |
+| Médio | 1 (0,2 h) | 3–5 (0,5–0,8 h) | 10–16 (1,6–2,7 h) | 19–20 (3,1 h); Tri: 73% nunca chega |
+| Iniciante | 2 (0,3–0,4 h) | 11–12 (1,8–2,1 h) | 25–40 (3,7–5 h); 7–75% nunca chega | quase nunca |
 
-(25 carreiras por dino, economia acelerada.) O jogador médio chega à 1ª vitória com Maestria 3–5 e ~370–850 Fósseis gastos.
+- **Antes desta versão**, o iniciante levava 10–26 runs até a primeira vitória, e sem nenhum degrau intermediário. Agora ele vence na 2ª run e chega ao Normal em ~11.
+- Com o jogador sempre subindo de dificuldade, a taxa de vitórias se estabiliza em ~30–45% (experiente) e ~10–25% (médio). O jogo continua desafiador.
+- Em 40 runs, todos os perfis completam a loja (5.150 Fósseis) e chegam a M10.
 
 ## Limitações e trade-offs
 
-- **A escolha de mutações pesa mais que a loja.** Com a mesma dificuldade base, a distância entre experiente e médio é grande. Deixar o jogo base ainda mais difícil atrasaria a 1ª vitória do experiente, mas derrubaria o teto do médio: com chefe ×1,8/×2,1, o médio fica em 25–38% **mesmo com a loja no máximo**. A escolha atual é o meio-termo.
-- **As recompensas por derrota estão otimistas**: o simulador conta cada derrota como morte durante o chefe. Quem morre antes ganha menos Fósseis, então as horas reais até a 1ª vitória tendem a ser maiores.
-- **Duas passivas do Raptor não aparecem na simulação** (Instinto de Caça = movimento, Reflexo Felino = vida baixa), porque o simulador não modela movimento. O Raptor com meta deve estar um pouco melhor do que os números mostram.
-- A morte **antes** do chefe não é modelada (limitação que já existia no simulador). Validar com playtest.
+- **O Triceratops fica atrás em todas as dificuldades** (desde o rebalanceamento da 0.1.1/0.1.2). Na Extinção com tudo no máximo, ele vence 13% contra 45% do T-Rex. Próximo ajuste recomendado.
+- **As recompensas por derrota estão otimistas:** o simulador conta cada derrota como morte durante o chefe. Quem morre antes ganha menos Fósseis, então as horas reais tendem a ser maiores.
+- A morte **antes** do chefe não é modelada, e duas passivas do Raptor (Instinto de Caça e Reflexo Felino) ficam de fora, porque o simulador não modela movimento. Validar com playtest, principalmente o Filhote.

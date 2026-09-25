@@ -223,7 +223,7 @@ export class EndlessDirector {
       ctx.fx.explosion(m.x, m.y, M.radius, 0xff7020, 'dust');
       if (Math.hypot(pl.x - m.x, pl.y - m.y) <= M.radius + pl.radius) {
         ctx.damage.hitPlayer({
-          amount: M.damage * this.scaling('normal').damageMult,
+          amount: M.damage * ctx.director.scaling('normal').damageMult, // includes the run's difficulty
           tags: ['aoe'],
           knockAngle: Math.atan2(pl.y - m.y, pl.x - m.x),
           knockForce: 300,

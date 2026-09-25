@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { DINOSAURS, DINO_ORDER, type DinoId } from '../../data/dinosaurs';
-import { PASSIVES, SHOP, masteryProgress, type ShopItemDef } from '../../data/meta';
+import {
+  ABILITY_MASTERY, ABILITY_MAX_RANK, PASSIVES, SHOP, abilityMasteryRank, masteryFor, masteryProgress, passiveRank, roman, type ShopItemDef,
+} from '../../data/meta';
 import { DEBUG, GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { debugGrant, loadSave, purchase, purchaseStatus, shopLevel, type SaveData } from '../core/Save';
 import { COLORS, FONT_BOLD, button, hex, text } from '../ui/theme';
@@ -9,7 +11,7 @@ const LEFT = { x: 50, y: 150, w: 440, h: 480 };
 const RIGHT = { x: 510, y: 150, w: 720, h: 480 };
 const ROW_H = RIGHT.h / 5;
 
-/** "Covil": per-dinosaur shop (Fósseis) and mastery passives, outside of runs. */
+/** "Covil": per-dinosaur shop (Fósseis) and mastery track (passives + ability), outside of runs. */
 export class LairScene extends Phaser.Scene {
   private dino: DinoId = 'trex';
   private save!: SaveData;
@@ -111,24 +113,38 @@ export class LairScene extends Phaser.Scene {
     bar.fillRoundedRect(barX, LEFT.y + 84, Math.max(4, barW * (prog.needed > 0 ? prog.into / prog.needed : 1)), 12, 4);
     add(text(this, barX, LEFT.y + 100, prog.needed > 0 ? `${prog.into} / ${prog.needed} XP` : 'NÍVEL MÁXIMO', 13, COLORS.muted));
 
-    add(text(this, LEFT.x + 20, LEFT.y + 138, 'PASSIVAS', 18, COLORS.accentText, true));
-    add(text(this, LEFT.x + 20, LEFT.y + 162, 'Ganhas com maestria, sempre ativas.', 13, COLORS.muted));
-    PASSIVES[this.dino].forEach((p, i) => {
-      const y = LEFT.y + 196 + i * 94;
-      const unlocked = prog.level >= p.mastery;
+    add(text(this, LEFT.x + 20, LEFT.y + 126, 'EVOLUÇÃO', 18, COLORS.accentText, true));
+    add(text(this, LEFT.x + 20, LEFT.y + 148, 'A maestria libera e melhora as passivas e a habilidade.', 13, COLORS.muted));
+    const rows = PASSIVES[this.dino].map((p, slot) => {
+      const rank = passiveRank(slot, prog.level);
+      const next = rank < 2 ? masteryFor('passive', rank + 1, slot) : 0;
+      return { name: p.name, description: p.description, extra: p.rank2, rank, max: 2, next };
+    });
+    const abRank = abilityMasteryRank(prog.level);
+    rows.push({
+      name: d.abilityName, description: ABILITY_MASTERY[this.dino].description, extra: 'Sempre disponível; a maestria só a fortalece.',
+      rank: abRank, max: ABILITY_MAX_RANK, next: abRank < ABILITY_MAX_RANK ? masteryFor('ability', abRank + 1) : 0,
+    });
+    rows.forEach((r, i) => {
+      const y = LEFT.y + 172 + i * 76;
+      const on = r.rank > 0;
       const box = add(this.add.graphics());
-      box.fillStyle(unlocked ? COLORS.panelLight : 0x141810, 1);
-      box.fillRoundedRect(LEFT.x + 16, y, LEFT.w - 32, 84, 8);
-      if (unlocked) {
+      box.fillStyle(on ? COLORS.panelLight : 0x141810, 1);
+      box.fillRoundedRect(LEFT.x + 16, y, LEFT.w - 32, 72, 8);
+      if (on) {
         box.lineStyle(2, d.accentColor, 0.8);
-        box.strokeRoundedRect(LEFT.x + 16, y, LEFT.w - 32, 84, 8);
+        box.strokeRoundedRect(LEFT.x + 16, y, LEFT.w - 32, 72, 8);
       }
-      add(text(this, LEFT.x + 30, y + 8, p.name, 17, unlocked ? '#ffffff' : '#6a6a5a', true));
-      add(text(this, LEFT.x + LEFT.w - 30, y + 10, unlocked ? 'ATIVA' : `MAESTRIA ${p.mastery}`, 13, unlocked ? '#6aff8a' : COLORS.muted, true).setOrigin(1, 0));
-      add(this.add.text(LEFT.x + 30, y + 34, p.description, {
-        fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif', fontSize: '14px', color: unlocked ? '#d8d0b8' : '#6a6a5a',
-        wordWrap: { width: LEFT.w - 60 },
+      add(text(this, LEFT.x + 28, y + 6, r.name, 15, on ? '#ffffff' : '#6a6a5a', true));
+      const status = on ? `NÍVEL ${roman(r.rank)}` : `MAESTRIA ${r.next}`;
+      const hint = r.next ? (on ? `  ·  ${roman(r.rank + 1)} na M${r.next}` : '') : '  ·  MÁX.';
+      add(text(this, LEFT.x + LEFT.w - 28, y + 8, status + hint, 12, on ? '#6aff8a' : COLORS.muted, true).setOrigin(1, 0));
+      add(this.add.text(LEFT.x + 28, y + 24, r.description, {
+        fontFamily: '"Trebuchet MS", "Segoe UI", sans-serif', fontSize: '12px', color: on ? '#d8d0b8' : '#6a6a5a',
+        wordWrap: { width: LEFT.w - 56 },
       }));
+      const extraOn = i < 3 ? r.rank >= 2 : true;
+      add(text(this, LEFT.x + 28, y + 55, r.extra, 11, extraOn && on ? hex(d.accentColor) : '#5a5a4a', true));
     });
   }
 
@@ -166,11 +182,6 @@ export class LairScene extends Phaser.Scene {
     const by = y + ROW_H / 2;
     if (status === 'maxed') {
       add(text(this, bx, by, 'MÁXIMO', 18, '#6aff8a', true).setOrigin(0.5));
-      return;
-    }
-    if (status === 'locked') {
-      add(text(this, bx, by - 10, 'BLOQUEADO', 16, COLORS.muted, true).setOrigin(0.5));
-      add(text(this, bx, by + 12, `Requer Maestria ${item.mastery[lvl]}`, 13, COLORS.muted).setOrigin(0.5));
       return;
     }
     const cost = item.costs[lvl];
