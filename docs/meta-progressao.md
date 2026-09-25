@@ -23,11 +23,11 @@ Sem nenhuma melhoria, o jogador experiente vencia 92–99% das runs e o médio 4
 | | Antes | Agora |
 |---|---|---|
 | Chefe (`BALANCE.bossScaling`) | — | vida ×1,7 · dano ×1,9 (aplicado no spawn; `enemies.ts` intacto) |
-| Loja | 3 níveis, custos 60/150/300, maestria 1/3/6 | **5 níveis**, custos 80/150/250/380/550, maestria 1/2/4/6/8 (1.410 🦴 por item, 7.050 por dino) |
+| Loja | 3 níveis, custos 60/150/300, maestria 1/3/6 | **5 níveis**, custos 50/120/220/360/520, maestria 1/2/4/6/8 (1.270 🦴 por item, 6.350 por dino) |
 | Vida / Dano por nível | +6% / +5% | +12% / +12% |
 | Armadura por nível | +4 | +5 |
 | Item exclusivo | Raptor: vel. de ataque · Tri: recarga | Raptor: **+8% dano de garra** · Tri: **+8% dano de chifrada** (vel. de ataque esbarrava no limite de retorno decrescente; recarga quase não rendia) |
-| Fósseis por run | 8/min, 1 a cada 100 abates, elite 30, chefe 80 | 6/min, 1 a cada 150 abates, elite 20, **chefe 100** |
+| Fósseis por run | 8/min, 1 a cada 100 abates, elite 30, chefe 80 | 10/min, 1 a cada 100 abates, elite 30, **chefe 120** (acelerado após playtest: ganho estava lento) |
 | XP de maestria | 1 a cada 3 s | 1 a cada 4 s |
 
 ## Resultado — perfis fixos (150 runs por dino)
@@ -43,15 +43,15 @@ Sem nenhuma melhoria, o jogador experiente vencia 92–99% das runs e o médio 4
 
 A luta contra o chefe dura ~80–100 s sem melhorias (experiente) e ~50–65 s com a loja cheia.
 
-## Resultado — carreira (40 carreiras × 40 runs, desde zero)
+## Resultado — carreira (desde zero, até 40 runs)
 
 | Jogador | 1ª vitória (run, p25/p50/p75) | Horas até a 1ª (p50) | Vitórias nas runs 1–3 → 26–40 |
 |---|---|---|---|
-| Experiente | T-Rex 1/2/3 · Raptor 2/3/4 · Tri 1/2/3 | 0,3–0,5 h | 31–53% → 91–100% |
-| **Médio** | T-Rex **6/9/14** · Raptor **5/8/13** · Tri **5/7/11** | **1,2–1,5 h** | 6–8% → 45–79% |
-| Iniciante | Tri 17/26/34 · Raptor 19/33/— · T-Rex 32/—/— | 3,6–4,6 h | 0% → 3–14% |
+| Experiente | T-Rex 1/2/3 · Raptor 1/3/5 · Tri 1/2/3 | 0,3–0,5 h | 25–52% → 97–100% |
+| **Médio** | T-Rex **2/4/7** · Raptor **5/7/11** · Tri **4/5/8** | **0,6–1,2 h** | 4–19% → 63–90% |
+| Iniciante | Tri 15/16/21 · Raptor 13/19/28 · T-Rex 19/26/33 | 2,7–4,0 h | 0–1% → 7–34% |
 
-O jogador médio chega à 1ª vitória com Maestria 5 e ~550–700 Fósseis gastos.
+(25 carreiras por dino, economia acelerada.) O jogador médio chega à 1ª vitória com Maestria 3–5 e ~370–850 Fósseis gastos.
 
 ## Limitações e trade-offs
 

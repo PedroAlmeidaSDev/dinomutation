@@ -10,7 +10,7 @@ import type { DinoId } from './dinosaurs';
  * the regular effect engine (stat / trigger / flag) and never show up on cards.
  */
 export const META_ECONOMY = {
-  fossils: { perMinute: 6, perKills: 150, elite: 20, boss: 100 },
+  fossils: { perMinute: 10, perKills: 100, elite: 30, boss: 120 },
   mastery: { secondsPerXp: 4, elite: 40, boss: 100, maxLevel: 10, xpPerLevel: 100 },
 };
 
@@ -36,7 +36,7 @@ export interface PassiveDef {
 }
 
 /** Five tiers per item: cheap early steps, mastery-gated late ones. */
-const COSTS = [80, 150, 250, 380, 550];
+const COSTS = [50, 120, 220, 360, 520];
 const GATES = [1, 2, 4, 6, 8];
 
 const SHARED_ITEMS: ShopItemDef[] = [
