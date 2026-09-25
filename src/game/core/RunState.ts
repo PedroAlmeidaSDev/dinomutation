@@ -16,6 +16,8 @@ export interface RunState {
   kills: number;
   damageDealt: number;
   damageTaken: number;
+  /** Damage dealt per source key (data/damageSources.ts), for the result screen. */
+  damageBySource: Record<string, number>;
   upgrades: RunUpgradeRecord[];
   eliteKilled: boolean;
   bossKilled: boolean;
@@ -40,6 +42,7 @@ export function createRunState(dinosaur: DinoId): RunState {
     kills: 0,
     damageDealt: 0,
     damageTaken: 0,
+    damageBySource: {},
     upgrades: [],
     eliteKilled: false,
     bossKilled: false,

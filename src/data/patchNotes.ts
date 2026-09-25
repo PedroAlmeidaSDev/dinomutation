@@ -20,6 +20,36 @@ export interface PatchNote {
 
 export const PATCH_NOTES: PatchNote[] = [
   {
+    version: '0.1.2',
+    date: '25/09/2026',
+    title: 'Ácido sob controle',
+    sections: [
+      {
+        title: 'NOVIDADE',
+        color: '#e0a0ff',
+        items: [
+          'Tabela de DANO POR FONTE no fim da run: veja quanto dano veio do ataque, da habilidade, de cada mutação e de cada veneno/sangramento.',
+          'Botão COPIAR no fim da run: copia o resumo da run (dino, mutações e dano por fonte). Mande para a gente nos ajudar a balancear o jogo!',
+        ],
+      },
+      {
+        title: 'TRICERATOPS',
+        color: '#9ab8d8',
+        items: [
+          'Dano base 25 → 23.',
+        ],
+      },
+      {
+        title: 'MUTAÇÕES',
+        color: '#ffcf6a',
+        items: [
+          'Sangue Ácido: agora explode no máximo 1 vez por segundo (antes, podia disparar a cada golpe recebido).',
+          'Fortaleza Viva: bônus de dano máximo +80% → +50%.',
+        ],
+      },
+    ],
+  },
+  {
     version: '0.1.1',
     date: '25/09/2026',
     title: 'Equilíbrio dos Dinossauros',

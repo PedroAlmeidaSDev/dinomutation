@@ -19,6 +19,7 @@ export class RoarAbility implements Ability {
         target: e,
         base: p.stats.get('damage') * cfg.coef,
         tags: ['roar', 'aoe'],
+        source: 'ability',
         knockback: 560,
         knockAngle: Math.atan2(e.y - p.y, e.x - p.x),
         canCrit: false,

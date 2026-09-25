@@ -135,7 +135,7 @@ export const DINOSAURS: Record<DinoId, DinoDef> = {
     accel: 800,
     stats: {
       maxHealth: 240,
-      damage: 25,
+      damage: 23,
       attackSpeed: 1.05,
       moveSpeed: 140,
       armor: 25,

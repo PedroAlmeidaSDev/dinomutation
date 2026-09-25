@@ -26,6 +26,7 @@ export class PounceAbility implements Ability {
           target: e,
           base: p.stats.get('damage') * BALANCE.abilities.pounce.coef,
           tags: ['dash', 'pounce', 'claw', 'physical'],
+          source: 'ability',
           knockback: 120,
           knockAngle: angle + (Math.random() < 0.5 ? 1 : -1) * 1.2,
         });

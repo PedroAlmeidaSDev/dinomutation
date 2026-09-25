@@ -30,6 +30,7 @@ export class ChargeAbility implements Ability {
           target: e,
           base: p.stats.get('damage') * BALANCE.abilities.charge.coef,
           tags: ['dash', 'charge', 'impact', 'physical'],
+          source: 'ability',
           knockback: 720,
           knockAngle: angle + side * 0.9,
         });
