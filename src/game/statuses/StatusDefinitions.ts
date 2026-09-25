@@ -12,6 +12,8 @@ export interface StatusInstance {
   potency: number;
   source: 'player' | 'enemy';
   tickTimer: number;
+  /** Stacks applied per origin (upgrade id), to split DoT damage in the run stats. */
+  origins?: Record<string, number>;
 }
 
 /** Anything that can carry statuses: the player and every enemy. */

@@ -21,6 +21,9 @@ export class RunScene extends Phaser.Scene {
   private keys!: Record<'W' | 'A' | 'S' | 'D' | 'UP' | 'DOWN' | 'LEFT' | 'RIGHT', Phaser.Input.Keyboard.Key>;
   private paused = false;
   private selecting = false;
+  /** Story boss is dead: waiting to show / showing the "end or go endless" choice. */
+  private victoryPending = false;
+  private choosingEndless = false;
   private selectionClosedAt = 0;
   private rerolls: number = BALANCE.upgrades.rerollsPerRun;
   private endTimer = -1;
@@ -35,6 +38,8 @@ export class RunScene extends Phaser.Scene {
     this.dino = data.dino ?? 'trex';
     this.paused = false;
     this.selecting = false;
+    this.victoryPending = false;
+    this.choosingEndless = false;
     this.hud = null;
     this.endTimer = -1;
     this.timeScale = 1;
@@ -58,6 +63,11 @@ export class RunScene extends Phaser.Scene {
 
     this.run.bus.on('banner', (b) => this.hud?.hud.banner(b.text, b.sub, b.color));
     this.run.bus.on('onLevelUp', () => this.run.fx.levelUp(this.run.player.x, this.run.player.y));
+    this.run.bus.on('storyBossDefeated', () => {
+      this.victoryPending = true;
+      // Let the boss explosion play before asking.
+      this.time.delayedCall(1600, () => this.offerEndless());
+    });
 
     this.scene.launch('HUD', { runScene: this });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
@@ -76,7 +86,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   private get simPaused(): boolean {
-    return this.paused || this.selecting;
+    return this.paused || this.selecting || this.choosingEndless;
   }
 
   /** True while gameplay input should be ignored (paused, picking an upgrade, run over). */
@@ -101,7 +111,7 @@ export class RunScene extends Phaser.Scene {
   }
 
   togglePause(): void {
-    if (this.selecting || this.run.outcome || !this.hud) return;
+    if (this.selecting || this.victoryPending || this.run.outcome || !this.hud) return;
     this.paused = !this.paused;
     this.setSimFrozen(this.paused);
     if (this.paused) this.hud.showPause(() => this.togglePause(), () => this.quitToMenu());
@@ -139,26 +149,51 @@ export class RunScene extends Phaser.Scene {
 
     this.run.update(realDt * this.timeScale, ix, iy);
 
-    if (!this.run.outcome && this.run.xp.hasPending && this.hud && this.run.player.isAlive()) this.openSelection();
+    if (!this.run.outcome && !this.victoryPending && this.run.xp.hasPending && this.hud && this.run.player.isAlive()) this.openSelection();
+  }
+
+  /** Story boss down: end the run as a victory, or continue into the endless mode. */
+  private offerEndless(): void {
+    if (this.run.outcome || !this.hud) return;
+    this.choosingEndless = true;
+    this.setSimFrozen(true);
+    this.hud.showVictoryChoice(
+      () => {
+        this.choosingEndless = false;
+        this.victoryPending = false;
+        this.setSimFrozen(false);
+        this.run.director.startEndless();
+        this.run.xp.pendingLegendary++;
+      },
+      () => {
+        this.choosingEndless = false;
+        this.setSimFrozen(false);
+        this.run.outcome = 'victory';
+      },
+    );
   }
 
   private openSelection(): void {
     const run = this.run;
     const hud = this.hud!;
-    const rare = run.xp.pendingRare > 0;
+    const legendary = run.xp.pendingLegendary > 0;
+    const rare = !legendary && run.xp.pendingRare > 0;
     this.selecting = true;
     this.setSimFrozen(true);
-    const choices = run.upgrades.roll({ minRarity: rare ? 'rare' : 'common' });
+    const choices = run.upgrades.roll({ minRarity: legendary ? 'legendary' : rare ? 'rare' : 'common' });
     const buildTags = new Set(run.upgrades.buildTagCounts(false).keys());
     hud.showSelection({
-      title: rare ? 'MUTAGÊNICO RARO!' : `EVOLUÇÃO! NÍVEL ${run.xp.level - run.xp.pendingLevelUps + 1}`,
-      subtitle: rare ? 'A elite deixou um DNA poderoso — escolha uma mutação rara' : 'Escolha uma mutação',
+      title: legendary ? 'MUTAÇÃO LENDÁRIA!' : rare ? 'MUTAGÊNICO RARO!' : `EVOLUÇÃO! NÍVEL ${run.xp.level - run.xp.pendingLevelUps + 1}`,
+      subtitle: legendary
+        ? `Recompensa da Era Sem Fim — Era ${run.run.era}`
+        : rare ? 'A elite deixou um DNA poderoso — escolha uma mutação rara' : 'Escolha uma mutação',
       choices,
       buildTags,
       rerolls: this.rerolls,
       onPick: (choice) => {
         run.upgrades.acquire(choice.def.id);
-        if (rare) run.xp.pendingRare--;
+        if (legendary) run.xp.pendingLegendary--;
+        else if (rare) run.xp.pendingRare--;
         else run.xp.pendingLevelUps--;
         run.fx.ring(run.player.x, run.player.y, 120, 0xffe070, 400);
         this.selecting = false;

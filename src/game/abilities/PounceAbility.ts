@@ -1,3 +1,4 @@
+import { BALANCE } from '../../data/balance';
 import type { RunContext } from '../core/RunContext';
 import type { Ability } from './Ability';
 
@@ -5,7 +6,7 @@ import type { Ability } from './Ability';
 export class PounceAbility implements Ability {
   readonly id = 'pounce' as const;
   readonly name = 'Pounce';
-  readonly baseCooldown = 3.5;
+  readonly baseCooldown = BALANCE.abilities.pounce.cooldown;
   readonly tags = ['dash', 'pounce', 'claw'];
 
   activate(ctx: RunContext): void {
@@ -23,8 +24,9 @@ export class PounceAbility implements Ability {
       onHit: (e) => {
         ctx.damage.hitEnemy({
           target: e,
-          base: p.stats.get('damage') * 2.2,
+          base: p.stats.get('damage') * BALANCE.abilities.pounce.coef,
           tags: ['dash', 'pounce', 'claw', 'physical'],
+          source: 'ability',
           knockback: 120,
           knockAngle: angle + (Math.random() < 0.5 ? 1 : -1) * 1.2,
         });

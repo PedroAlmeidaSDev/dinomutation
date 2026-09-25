@@ -72,6 +72,7 @@ export class SummonSystem {
             target: t,
             base: ctx.player.stats.get('damage') * g.spec.coef * ctx.player.stats.get('summonDamage'),
             tags: ['summon', 'claw', 'physical'],
+            source: 'summon',
             knockback: 60,
             knockAngle: g.angle,
             depth: 1,

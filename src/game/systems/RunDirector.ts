@@ -1,15 +1,19 @@
 import { BALANCE } from '../../data/balance';
 import { DIRECTOR_CONFIG, type DirectorEvent, type SpawnPhase } from '../../data/director';
-import type { EnemyId } from '../../data/enemies';
+import type { EnemyId, EnemyRank } from '../../data/enemies';
 import type { RunContext } from '../core/RunContext';
 import type { Enemy, EnemyScaling } from '../entities/enemies/Enemy';
 import { randInt, weightedPick } from '../../utils/math';
+import { EndlessDirector } from './EndlessDirector';
 
 /**
  * Single owner of run pacing: time, spawn rate, enemy mix, events, elite and boss.
- * No other class keeps spawn timers.
+ * No other class keeps spawn timers. After the story boss, pacing can be handed to
+ * an EndlessDirector (endless mode).
  */
 export class RunDirector {
+  /** Set once the player continues into the endless mode. */
+  endless: EndlessDirector | null = null;
   elapsed = 0;
   private spawnTimer = 1;
   private recycleTimer = 2;
@@ -34,20 +38,41 @@ export class RunDirector {
     return this.elapsed / 60;
   }
 
-  /** Enemy stat multipliers growing over time. */
-  scaling(): EnemyScaling {
-    const m = this.minutes;
+  /** Enemy stat multipliers. Story: normal enemies grow over time, elite/boss are fixed. */
+  scaling(rank: EnemyRank = 'normal'): EnemyScaling {
+    if (this.endless) return this.endless.scaling(rank);
+    if (rank === 'boss') return { ...BALANCE.bossScaling };
+    if (rank !== 'normal') return { hpMult: 1, damageMult: 1 };
+    return this.storyScaling(this.minutes);
+  }
+
+  private storyScaling(m: number): EnemyScaling {
     const S = BALANCE.enemyScaling;
     return {
       hpMult: 1 + S.hpPerMinute * m + S.hpPerMinuteSq * m * m,
-      damageMult: 1 + BALANCE.enemyScaling.damagePerMinute * m,
+      damageMult: 1 + S.damagePerMinute * m,
     };
+  }
+
+  /** Hand pacing over to the endless mode (after the story boss). */
+  startEndless(): void {
+    if (this.endless) return;
+    this.boss = null;
+    this.elite = null;
+    this.endless = new EndlessDirector(this.ctx, this.storyScaling(DIRECTOR_CONFIG.bossTime / 60));
+    this.ctx.run.endless = true;
+    this.ctx.bus.emit('banner', { text: 'ERA SEM FIM', sub: 'Era 1 — sobreviva o quanto puder', color: 0xd070ff });
   }
 
   update(dt: number): void {
     const ctx = this.ctx;
     this.elapsed += dt;
     ctx.run.elapsedTime = this.elapsed;
+    if (this.endless) {
+      this.endless.update(dt);
+      this.recycle(dt);
+      return;
+    }
     const cfg = DIRECTOR_CONFIG;
 
     // Regular spawns
@@ -90,14 +115,19 @@ export class RunDirector {
     }
     if (!this.bossSpawned && this.elapsed >= cfg.bossTime) this.spawnBoss();
 
+    this.recycle(dt);
+  }
+
+  private recycle(dt: number): void {
     this.recycleTimer -= dt;
     if (this.recycleTimer <= 0) {
       this.recycleTimer = 2;
-      ctx.spawner.recycleFar();
+      this.ctx.spawner.recycleFar();
     }
   }
 
   spawnElite(): void {
+    if (this.endless) return this.endless.spawnElites();
     if (this.eliteSpawned) return;
     this.eliteSpawned = true;
     const pos = this.ctx.spawner.ringPosition();
@@ -106,6 +136,7 @@ export class RunDirector {
   }
 
   spawnBoss(): void {
+    if (this.endless) return this.endless.spawnBoss();
     if (this.bossSpawned) return;
     this.bossSpawned = true;
     this.eliteSpawned = true;
@@ -118,5 +149,6 @@ export class RunDirector {
   /** Debug: jump forward in time. */
   skip(seconds: number): void {
     this.elapsed += seconds;
+    if (this.endless) this.endless.eraClock += seconds;
   }
 }

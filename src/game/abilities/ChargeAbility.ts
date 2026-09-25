@@ -6,7 +6,7 @@ import type { Ability } from './Ability';
 export class ChargeAbility implements Ability {
   readonly id = 'charge' as const;
   readonly name = 'Investida';
-  readonly baseCooldown = 6.5;
+  readonly baseCooldown = BALANCE.abilities.charge.cooldown;
   readonly tags = ['dash', 'charge', 'impact', 'stun'];
 
   activate(ctx: RunContext): void {
@@ -28,12 +28,13 @@ export class ChargeAbility implements Ability {
         const side = Math.sign(Math.sin(Math.atan2(e.y - p.y, e.x - p.x) - angle)) || 1;
         ctx.damage.hitEnemy({
           target: e,
-          base: p.stats.get('damage') * 2.6,
+          base: p.stats.get('damage') * BALANCE.abilities.charge.coef,
           tags: ['dash', 'charge', 'impact', 'physical'],
+          source: 'ability',
           knockback: 720,
           knockAngle: angle + side * 0.9,
         });
-        ctx.status.apply(e, 'stun', { duration: 1.1 });
+        ctx.status.apply(e, 'stun', { duration: BALANCE.abilities.charge.stun });
         ctx.fx.dust(e.x, e.y, 6);
         ctx.fx.shake(BALANCE.feel.shakeMedium, 90);
         ctx.hitstop(0.02);

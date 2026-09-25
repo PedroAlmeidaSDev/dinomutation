@@ -127,7 +127,7 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
     if (!p.attacker || p.attacker.dead || !p.tags.includes('melee')) return;
     const armor = Math.max(0, ctx.player.stats.get('armor'));
     const dmg = (num(rt, 'flat', 10) + armor * num(rt, 'armorScale', 0.8)) * rt.power();
-    ctx.damage.hitEnemy({ target: p.attacker, base: dmg, tags: ['thorns', 'reflect'], canCrit: false, rawBase: true, depth: 1, noProcs: true });
+    ctx.damage.hitEnemy({ target: p.attacker, base: dmg, tags: ['thorns', 'reflect'], source: rt.upgradeId, canCrit: false, rawBase: true, depth: 1, noProcs: true });
     ctx.fx.hitSpark(p.attacker.x, p.attacker.y);
   },
 
@@ -145,7 +145,12 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
   /** Area burst around the player (Impacto Sísmico, Sangue Ácido). */
   aoeBurst(rt) {
     const { ctx } = rt;
+    // Optional internal cooldown: on-damage-taken bursts would otherwise fire every iFrame window on tanky builds.
+    const cooldown = num(rt, 'cooldown', 0);
+    const now = ctx.run.elapsedTime;
+    if (cooldown > 0 && now - (rt.state.lastBurst ?? -Infinity) < cooldown) return;
     if (Math.random() >= num(rt, 'chance', 1)) return;
+    if (cooldown > 0) rt.state.lastBurst = now;
     const p = ctx.player;
     const radius = num(rt, 'radius', 150) * Math.sqrt(p.stats.get('size')) * (1 + (rt.power() - 1) * 0.15);
     const coef = num(rt, 'coef', 1) * rt.power();
@@ -160,9 +165,9 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
     ctx.defer(() => {
       for (const e of ctx.queryEnemies(x, y, radius)) {
         if (e.dead) continue;
-        ctx.damage.hitEnemy({ target: e, base: p.stats.get('damage') * coef, tags: ['aoe', tag], depth: 1, knockback: knock, knockAngle: Math.atan2(e.y - y, e.x - x) });
+        ctx.damage.hitEnemy({ target: e, base: p.stats.get('damage') * coef, tags: ['aoe', tag], source: rt.upgradeId, depth: 1, knockback: knock, knockAngle: Math.atan2(e.y - y, e.x - x) });
         if (stun > 0) ctx.status.apply(e, 'stun', { duration: stun });
-        if (poison > 0) ctx.status.apply(e, 'poison', { stacks: Math.round(poison * rt.power()) });
+        if (poison > 0) ctx.status.apply(e, 'poison', { stacks: Math.round(poison * rt.power()), origin: rt.upgradeId });
       }
     });
   },
@@ -226,7 +231,7 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
       for (const e of ctx.queryEnemies(pl.x, pl.y, radius)) {
         if (e.dead) continue;
         ctx.damage.hitEnemy({
-          target: e, base: pl.stats.get('damage') * num(rt, 'coef', 0.9) * rt.power(), tags: ['tail', 'aoe', 'impact'],
+          target: e, base: pl.stats.get('damage') * num(rt, 'coef', 0.9) * rt.power(), tags: ['tail', 'aoe', 'impact'], source: rt.upgradeId,
           depth: 1, knockback: num(rt, 'knockback', 380), knockAngle: Math.atan2(e.y - pl.y, e.x - pl.x),
         });
       }
@@ -264,8 +269,8 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
     ctx.defer(() => {
       for (const t of ctx.queryEnemies(x, y, radius)) {
         if (t.dead || t === e) continue;
-        ctx.damage.hitEnemy({ target: t, base: dmg, tags: ['bleed', 'aoe', 'explosion'], rawBase: true, canCrit: false, depth: 2, noProcs: true });
-        if (!t.dead) ctx.status.apply(t, 'bleed', { stacks: spread, potency: bleed.potency });
+        ctx.damage.hitEnemy({ target: t, base: dmg, tags: ['bleed', 'aoe', 'explosion'], source: rt.upgradeId, rawBase: true, canCrit: false, depth: 2, noProcs: true });
+        if (!t.dead) ctx.status.apply(t, 'bleed', { stacks: spread, potency: bleed.potency, origin: rt.upgradeId });
       }
     });
   },
@@ -273,7 +278,7 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
   /** Armor converts into damage (Fortaleza Viva). */
   armorToDamage(rt, calc: DamageCalc) {
     const armor = Math.max(0, rt.ctx.player.stats.get('armor'));
-    calc.bonus += armor * num(rt, 'perArmor', 0.012) * rt.power();
+    calc.bonus += Math.min(num(rt, 'maxBonus', Infinity), armor * num(rt, 'perArmor', 0.012)) * rt.power();
   },
 
   /** Enemies touching the player get crushed (Colosso). */
@@ -287,7 +292,7 @@ export const EFFECT_HANDLERS: Record<string, EffectHandler> = {
     for (const e of ctx.queryEnemies(pl.x, pl.y, pl.radius + 8)) {
       if (e.dead || e.isBossLike) continue;
       const dmg = pl.stats.get('damage') * num(rt, 'coef', 0.4) + e.maxHp * num(rt, 'hpPercent', 0.04);
-      ctx.damage.hitEnemy({ target: e, base: dmg, tags: ['size', 'impact'], rawBase: true, canCrit: false, depth: 1, knockback: 260, knockAngle: Math.atan2(e.y - pl.y, e.x - pl.x) });
+      ctx.damage.hitEnemy({ target: e, base: dmg, tags: ['size', 'impact'], source: rt.upgradeId, rawBase: true, canCrit: false, depth: 1, knockback: 260, knockAngle: Math.atan2(e.y - pl.y, e.x - pl.x) });
       ctx.fx.dust(e.x, e.y, 3);
     }
   },

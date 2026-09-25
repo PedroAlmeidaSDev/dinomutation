@@ -18,17 +18,27 @@ export interface SaveData {
   mastery: Partial<Record<DinoId, number>>;
   /** Purchased level of each shop item, per dinosaur. */
   shop: Partial<Record<DinoId, Record<string, number>>>;
+  /** Endless mode: runs that continued past the story boss. */
+  endlessRuns: number;
+  /** Highest Era reached (overall and per dinosaur). */
+  bestEra: number;
+  bestEraByDino: Partial<Record<DinoId, number>>;
+  /** Last patch-notes version the player has seen (see data/patchNotes.ts). */
+  seenPatch?: string;
 }
 
 function empty(): SaveData {
-  return { runs: 0, wins: 0, bestTime: 0, bestByDino: {}, fossils: 0, mastery: {}, shop: {} };
+  return {
+    runs: 0, wins: 0, bestTime: 0, bestByDino: {}, fossils: 0, mastery: {}, shop: {},
+    endlessRuns: 0, bestEra: 0, bestEraByDino: {},
+  };
 }
 
 export function loadSave(): SaveData {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return empty();
-    // Saves from before meta-progression simply lack the new fields.
+    // Older saves (before meta-progression / endless mode) simply lack the new fields.
     return { ...empty(), ...JSON.parse(raw) } as SaveData;
   } catch {
     return empty();
@@ -41,6 +51,13 @@ export function writeSave(data: SaveData): void {
   } catch {
     // storage unavailable (private mode etc.) — progress simply isn't kept
   }
+}
+
+/** Marks the patch notes of `version` as seen so they aren't shown again. */
+export function markPatchSeen(version: string): void {
+  const s = loadSave();
+  s.seenPatch = version;
+  writeSave(s);
 }
 
 export interface RunRewards {
@@ -60,6 +77,12 @@ export function recordRun(state: RunState, victory: boolean): { save: SaveData; 
   s.bestTime = Math.max(s.bestTime, state.elapsedTime);
   s.bestByDino[dino] = Math.max(s.bestByDino[dino] ?? 0, state.elapsedTime);
   s.lastDino = dino;
+  const era = state.endless ? state.era : 0;
+  if (era > 0) {
+    s.endlessRuns += 1;
+    s.bestEra = Math.max(s.bestEra, era);
+    s.bestEraByDino[dino] = Math.max(s.bestEraByDino[dino] ?? 0, era);
+  }
 
   const fossils = fossilsForRun(state);
   const masteryXp = masteryXpForRun(state);

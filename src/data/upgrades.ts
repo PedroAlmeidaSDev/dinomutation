@@ -187,8 +187,8 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'espinhos', name: 'Espinhos', rarity: 'common', maxLevel: 3,
     tags: ['armor', 'thorns', 'reflect'],
-    description: 'Inimigos que causam dano corpo a corpo recebem 10 + 80% da sua Armadura como dano.',
-    effects: [{ type: 'trigger', trigger: 'onDamageTaken', effect: 'thorns', params: { flat: 10, armorScale: 0.8 } }],
+    description: 'Inimigos que causam dano corpo a corpo recebem 10 + 50% da sua Armadura como dano.',
+    effects: [{ type: 'trigger', trigger: 'onDamageTaken', effect: 'thorns', params: { flat: 10, armorScale: 0.5 } }],
     visual: ['spikes'],
   },
   {
@@ -275,9 +275,9 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'sangue_acido', name: 'Sangue Ácido', rarity: 'rare', maxLevel: 3,
     tags: ['poison', 'aoe'],
-    description: 'Ao receber dano, 50% de chance de explodir em ácido: 120% de dano em área + 3 de Veneno.',
+    description: 'Ao receber dano, 50% de chance de explodir em ácido: 120% de dano em área + 3 de Veneno (máx. 1 vez por segundo).',
     effects: [
-      { type: 'trigger', trigger: 'onDamageTaken', effect: 'aoeBurst', params: { chance: 0.5, radius: 150, coef: 1.2, poison: 3, color: 0x90ff40, particles: 'poison', tag: 'poison' } },
+      { type: 'trigger', trigger: 'onDamageTaken', effect: 'aoeBurst', params: { chance: 0.5, cooldown: 1, radius: 150, coef: 1.2, poison: 3, color: 0x90ff40, particles: 'poison', tag: 'poison' } },
     ],
     visual: ['acid'],
   },
@@ -377,10 +377,10 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'fortaleza_viva', name: 'Fortaleza Viva', rarity: 'legendary', maxLevel: 1,
     tags: ['armor'],
-    description: 'Cada ponto de Armadura concede +1.2% de dano. +10 armadura.',
+    description: 'Cada ponto de Armadura concede +0.8% de dano (máx. +50%). +10 armadura.',
     requires: { ownedTags: ['armor'] },
     effects: [
-      { type: 'trigger', trigger: 'modifyDamage', effect: 'armorToDamage', params: { perArmor: 0.012 } },
+      { type: 'trigger', trigger: 'modifyDamage', effect: 'armorToDamage', params: { perArmor: 0.008, maxBonus: 0.5 } },
       { type: 'stat', stat: 'armor', mode: 'add', value: 10 },
     ],
     visual: ['plates', 'spikes'],
@@ -416,6 +416,25 @@ export const UPGRADES: UpgradeDefinition[] = [
     tags: ['health'],
     description: '+15 de vida máxima.',
     effects: [{ type: 'stat', stat: 'maxHealth', mode: 'add', value: 15 }],
+  },
+  // Evoluções Infinitas: repeatable, offered once the regular pool runs dry (long endless runs).
+  {
+    id: 'evo_presas', name: 'Evolução: Presas', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['physical'],
+    description: '+4% de dano. Repetível.',
+    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.04 }],
+  },
+  {
+    id: 'evo_reflexos', name: 'Evolução: Reflexos', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['speed'],
+    description: '+3% de velocidade de ataque. Repetível.',
+    effects: [{ type: 'stat', stat: 'attackSpeed', mode: 'mult', value: 0.03 }],
+  },
+  {
+    id: 'evo_couraca', name: 'Evolução: Couraça', rarity: 'common', maxLevel: 999, consumable: true,
+    tags: ['armor'],
+    description: '+2 de armadura. Repetível.',
+    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 2 }],
   },
 ];
 

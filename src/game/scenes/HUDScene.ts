@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { HUD } from '../ui/HUD';
+import { onLayout } from '../ui/layout';
 import { PauseMenu } from '../ui/PauseMenu';
 import { TouchControls } from '../ui/TouchControls';
 import { UpgradeSelection, type SelectionOptions } from '../ui/UpgradeSelection';
+import { VictoryChoice } from '../ui/VictoryChoice';
 import type { RunScene } from './RunScene';
 
 /**
@@ -14,6 +16,7 @@ export class HUDScene extends Phaser.Scene {
   touch!: TouchControls;
   private selection: UpgradeSelection | null = null;
   private pause: PauseMenu | null = null;
+  private victory: VictoryChoice | null = null;
 
   constructor() {
     super('HUD');
@@ -22,6 +25,7 @@ export class HUDScene extends Phaser.Scene {
   create(data: { runScene: RunScene }): void {
     this.selection = null;
     this.pause = null;
+    this.victory = null;
     const runScene = data.runScene;
     this.hud = new HUD(this, runScene.run);
     this.touch = new TouchControls(this, {
@@ -32,6 +36,12 @@ export class HUDScene extends Phaser.Scene {
       onShow: () => this.hud.useTouchLayout(),
     });
     runScene.attachHud(this);
+    onLayout(this, () => {
+      this.hud.layout();
+      this.selection?.layout();
+      this.pause?.layout();
+      this.victory?.layout();
+    });
   }
 
   update(_t: number, delta: number): void {
@@ -56,5 +66,11 @@ export class HUDScene extends Phaser.Scene {
   hidePause(): void {
     this.pause?.destroy();
     this.pause = null;
+  }
+
+  showVictoryChoice(onContinue: () => void, onEnd: () => void): void {
+    this.victory = new VictoryChoice(this,
+      () => { this.victory = null; onContinue(); },
+      () => { this.victory = null; onEnd(); });
   }
 }

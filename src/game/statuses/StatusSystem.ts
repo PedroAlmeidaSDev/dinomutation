@@ -9,6 +9,8 @@ export interface ApplyStatusOptions {
   /** DoT damage per second per stack. Defaults to the player-scaled value. */
   potency?: number;
   source?: 'player' | 'enemy';
+  /** What applied it (upgrade id). Player DoT damage is credited to it in the run stats. */
+  origin?: string;
 }
 
 /**
@@ -35,6 +37,7 @@ export class StatusSystem {
       existing.remaining = Math.max(existing.remaining, duration);
       existing.duration = Math.max(existing.duration, duration);
       existing.potency = Math.max(existing.potency, potency);
+      if (source === 'player') addOrigin(existing, opts.origin, stacks);
     } else {
       host.statuses.set(id, {
         id,
@@ -45,6 +48,7 @@ export class StatusSystem {
         source,
         tickTimer: def.tickInterval ?? 0,
       });
+      if (source === 'player') addOrigin(host.statuses.get(id)!, opts.origin, stacks);
     }
     this.ctx.bus.emit('onStatusApplied', { host, status: id, stacks });
   }
@@ -129,10 +133,25 @@ export class StatusSystem {
         canCrit: false,
         depth: 1,
         rawBase: true,
+        source: dotSource(inst),
       });
       if (inst.id === 'bleed' && Math.random() < 0.5) this.ctx.fx.bleedDrip(host.x, host.y);
     } else {
       this.ctx.damage.hitPlayer({ amount, tags, ignoreIFrames: true, silent: true });
     }
   }
+}
+
+function addOrigin(inst: StatusInstance, origin: string | undefined, stacks: number): void {
+  const key = origin ?? 'unknown';
+  inst.origins ??= {};
+  inst.origins[key] = (inst.origins[key] ?? 0) + stacks;
+}
+
+/** 'poison' → { 'poison:sangue_acido': 3, 'poison:glandulas_venenosas': 8 } (weights = stacks applied). */
+function dotSource(inst: StatusInstance): Record<string, number> | string {
+  if (!inst.origins) return `${inst.id}:unknown`;
+  const out: Record<string, number> = {};
+  for (const [k, v] of Object.entries(inst.origins)) out[`${inst.id}:${k}`] = v;
+  return out;
 }

@@ -24,6 +24,13 @@ export const BALANCE = {
     exponent: 1.44,
   },
 
+  /** Dinosaur abilities. Read by the ability classes and by tools/balance/sim.ts. */
+  abilities: {
+    roar: { cooldown: 8, coef: 1.0, stun: 1.1, damageBuff: 0.4, buffDuration: 4 },
+    pounce: { cooldown: 3.0, coef: 2.6 },
+    charge: { cooldown: 7.5, coef: 2.6, stun: 0.7 },
+  },
+
   upgrades: {
     rarityWeights: { common: 100, rare: 30, legendary: 5 },
     /** Extra rarity weight gained per player level. */

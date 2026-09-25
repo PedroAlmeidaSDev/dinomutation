@@ -15,8 +15,10 @@ export function createGame(parent: string): Phaser.Game {
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
     backgroundColor: '#12150e',
+    // EXPAND fills the whole screen (no letterbox bars): the 1280×720 base is
+    // always visible and the game area grows on wider/taller screens.
     scale: {
-      mode: Phaser.Scale.FIT,
+      mode: Phaser.Scale.EXPAND,
       autoCenter: Phaser.Scale.CENTER_BOTH,
     },
     // Joystick + ability button held at the same time on touch screens.

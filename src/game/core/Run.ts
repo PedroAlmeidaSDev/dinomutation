@@ -115,7 +115,9 @@ export class Run implements RunContext {
       this.collision.resolvePlayer();
     }
 
-    if (!this.outcome) this.director.update(dt);
+    // Between the story boss dying and the player choosing to go endless, nothing spawns.
+    const awaitingChoice = this.run.bossKilled && !this.director.endless;
+    if (!this.outcome && !awaitingChoice) this.director.update(dt);
 
     for (const e of this.enemies) if (!e.dead) e.update(dt, this);
     this.collision.rebuildGrid(this.enemies);
@@ -159,9 +161,17 @@ export class Run implements RunContext {
     this.fx.enemyDeath(enemy.x, enemy.y, enemy.radius, bleeding);
 
     if (enemy.def.rank === 'boss') {
-      run.bossKilled = true;
-      this.outcome = 'victory';
-      run.victory = true;
+      const endless = this.director.endless;
+      if (endless) {
+        // Era boss: next Era plus a guaranteed legendary pick.
+        endless.onBossKilled();
+        this.xp.pendingLegendary++;
+      } else {
+        // Story boss: the win is recorded now; the scene asks whether to end or go endless.
+        run.bossKilled = true;
+        run.victory = true;
+        this.bus.emit('storyBossDefeated', {});
+      }
       this.fx.bigExplosion(enemy.x, enemy.y);
       this.fx.shake(0.02, 900);
       this.hitstop(0.12);
@@ -182,7 +192,8 @@ export class Run implements RunContext {
       this.bus.emit('banner', { text: 'ELITE DERROTADA!', sub: 'Colete o mutagênico', color: 0xd070ff });
     } else if (!enemy.noRewards) {
       this.pickups.spawnDNA(enemy.x, enemy.y, enemy.def.xp);
-      if (Math.random() < BALANCE.drops.meatChance) this.pickups.spawn('meat', enemy.x, enemy.y);
+      const drought = this.director.endless?.has('drought') ?? false;
+      if (!drought && Math.random() < BALANCE.drops.meatChance) this.pickups.spawn('meat', enemy.x, enemy.y);
       else if (Math.random() < BALANCE.drops.magnetChance) this.pickups.spawn('magnet', enemy.x, enemy.y);
       if (enemy.def.id === 'carnotaurus') this.fx.shake(BALANCE.feel.shakeLight, 100);
     }
@@ -202,7 +213,8 @@ export class Run implements RunContext {
       if (this.enemies[i].removed) this.enemies.splice(i, 1);
     }
     if (this.director.boss?.removed) this.director.boss = null;
-    if (this.director.elite?.removed) this.director.elite = null;
+    // Endless Eras can field several elites: the HUD bar moves on to the next one alive.
+    if (this.director.elite?.removed) this.director.elite = this.enemies.find((e) => e.def.rank === 'elite' && !e.dead) ?? null;
   }
 
   // ─────────────────────────── debug ───────────────────────────
@@ -214,7 +226,7 @@ export class Run implements RunContext {
   debugKillAll(): void {
     for (const e of [...this.enemies]) {
       if (e.dead) continue;
-      this.damage.hitEnemy({ target: e, base: e.hp + 99999, tags: ['debug'], rawBase: true, canCrit: false, noProcs: true });
+      this.damage.hitEnemy({ target: e, base: e.hp + 99999, tags: ['debug'], source: 'debug', rawBase: true, canCrit: false, noProcs: true });
     }
   }
 

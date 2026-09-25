@@ -16,10 +16,7 @@ export class SpawnSystem {
     const ctx = this.ctx;
     const def = ENEMIES[id];
     if (def.rank === 'normal' && ctx.enemies.length >= BALANCE.maxEnemies) return null;
-    const scaling = def.rank === 'normal'
-      ? ctx.director.scaling()
-      : def.rank === 'boss' ? BALANCE.bossScaling : { hpMult: 1, damageMult: 1 };
-    const e = createEnemy(ctx.scene, id, x, y, scaling);
+    const e = createEnemy(ctx.scene, id, x, y, ctx.director.scaling(def.rank));
     ctx.enemies.push(e);
     e.behavior.onSpawn?.(e, ctx);
     return e;
