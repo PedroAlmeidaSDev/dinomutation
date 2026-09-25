@@ -376,3 +376,48 @@ npm run balance -- 400 --json out.json   # exporta a timeline completa em JSON
 ```
 
 Para testar um valor novo, mude o dado em `src/data/*` e rode de novo. As premissas de habilidade do jogador ficam em `ASSUME`. As regras de mecânica (`RULES`) são lidas dos dados do jogo, e `applyOriginal()` guarda os valores antigos.
+
+---
+
+## 9. Equilíbrio entre os dinossauros · ✅ aplicado (25/09/2026)
+
+Em jogo, o Triceratops estava muito mais forte que os outros dois. O simulador mostrava a diferença só em parte, porque não modelava três vantagens dele:
+
+- **Empurrão e atordoamento:** chifrada com empurrão 340 em 4 alvos, e Investida que atordoa por 1,1 s, mantinham a horda longe.
+- **Espinhos contra a horda:** o simulador só contava Espinhos contra o chefe.
+- **Armadura acima do teto:** a redução de dano para em 60%, mas a armadura continuava alimentando Espinhos e Fortaleza Viva (+1,2% de dano por ponto, sem limite).
+
+### Mudanças
+
+| Dino | Mudança | Antes → Depois |
+|---|---|---|
+| Triceratops | Armadura base | 40 → **25** |
+| | Regeneração | 1,2 → **0,9** |
+| | Empurrão da chifrada | 340 → **240** |
+| | Dano base | 23 → **25** (compensa a perda de dano da Fortaleza Viva) |
+| | Investida | atordoa 1,1 → **0,7 s**, recarga 6,5 → **7,5 s** |
+| T-Rex | Vida / armadura | 170 / 6 → **180 / 8** |
+| | Mordida | 2 → **3 alvos**, ângulo 1,9 → **2,2** |
+| | Rugido | dano 0,6× → **1,0×**, recarga 10 → **8 s** |
+| Raptor | Vida / armadura / dano | 125 / 5 / 10 → **140 / 10 / 12** |
+| | Pounce | 2,2× → **2,6×**, recarga 3,5 → **3 s** |
+| Upgrades | Espinhos | 10 + 80% → **10 + 50%** da armadura |
+| | Fortaleza Viva | +1,2% por ponto de armadura → **+0,8%, máx. +80%** (parâmetro `maxBonus`) |
+
+- Os números das habilidades agora ficam em `BALANCE.abilities`, lidos pelas classes de habilidade e pelo simulador.
+- O simulador passou a contar os abates por Espinhos e pelo Rugido na horda.
+- O Pounce não precisou de mudança de invulnerabilidade: todo dash já deixa o dino invulnerável (`Player.isInvulnerable`).
+
+### Resultado simulado (300 runs, antes → depois)
+
+| | T-Rex | Raptor | Tri |
+|---|---|---|---|
+| Perde a run (build boa) | 5 → **0%** | 6 → **1%** | 0 → **0%** |
+| Perde a run (build aleatória) | 95 → **75%** | 91 → **75%** | 74 → **80%** |
+| Vida efetiva aos 9:00 (build boa) | 616 → 728 | 453 → 578 | 1.107 → 1.126 |
+| Chefe, duração (build boa) | 46 → 45 s | 55 → 49 s | 59 → 61 s |
+
+### Pendências
+- O simulador **ainda não modela empurrão e atordoamento**, que eram a maior vantagem do Tri em jogo. É preciso validar jogando.
+- A vida efetiva do Raptor ainda é 0,5× a do Tri. É proposital (ele se defende com mobilidade e invulnerabilidade no dash), mas vale observar no playtest.
+- Vencer o chefe só tankando ainda funciona em 38–47% das runs com build boa, acima da meta de 25% (§5.1). É um ajuste do chefe, não dos dinos. O candidato é `pierce` 0,35 → 0,5.
