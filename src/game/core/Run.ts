@@ -223,7 +223,7 @@ export class Run implements RunContext {
   debugKillAll(): void {
     for (const e of [...this.enemies]) {
       if (e.dead) continue;
-      this.damage.hitEnemy({ target: e, base: e.hp + 99999, tags: ['debug'], rawBase: true, canCrit: false, noProcs: true });
+      this.damage.hitEnemy({ target: e, base: e.hp + 99999, tags: ['debug'], source: 'debug', rawBase: true, canCrit: false, noProcs: true });
     }
   }
 

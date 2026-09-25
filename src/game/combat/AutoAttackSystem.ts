@@ -85,6 +85,7 @@ export class AutoAttackSystem {
         target: e,
         base,
         tags: atk.tags,
+        source: 'attack',
         knockback: atk.knockback,
         knockAngle: Math.atan2(e.y - p.y, e.x - p.x),
       });

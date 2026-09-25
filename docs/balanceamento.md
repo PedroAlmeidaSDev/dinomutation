@@ -421,3 +421,23 @@ Em jogo, o Triceratops estava muito mais forte que os outros dois. O simulador m
 - O simulador **ainda não modela empurrão e atordoamento**, que eram a maior vantagem do Tri em jogo. É preciso validar jogando.
 - A vida efetiva do Raptor ainda é 0,5× a do Tri. É proposital (ele se defende com mobilidade e invulnerabilidade no dash), mas vale observar no playtest.
 - Vencer o chefe só tankando ainda funciona em 38–47% das runs com build boa, acima da meta de 25% (§5.1). É um ajuste do chefe, não dos dinos. O candidato é `pierce` 0,35 → 0,5.
+
+---
+
+## 10. Sangue Ácido e dano por fonte (0.1.2)
+
+Depois da 0.1.1, jogadores relataram que o Triceratops ainda ficava quebrado com o **Sangue Ácido** somado a efeitos de dano em área. O motivo: o Sangue Ácido não tinha tempo de recarga. Com iFrames de 0,28 s, um tanque cercado apanha ~3,6 vezes por segundo, o que dava ~1,8 explosões/s de 120% de dano em área + veneno. E a Fortaleza Viva multiplicava esse dano.
+
+| Mudança | Antes → Depois |
+|---|---|
+| Sangue Ácido | sem recarga → **no máximo 1 explosão por segundo** (`cooldown` no `aoeBurst`) |
+| Fortaleza Viva | bônus máximo +80% → **+50%** |
+| Triceratops, dano base | 25 → **23** (desfaz o buff da 0.1.1) |
+
+O simulador **não modela o Sangue Ácido**, então só mede a parte do nerf que vem do dano base e da Fortaleza Viva. Com build aleatória, o Triceratops passou a perder 86% das runs (T-Rex 78%, Raptor 75%).
+
+### Dano por fonte (dados de runs reais)
+- `EnemyHitRequest.source` diz quem causou cada golpe: `attack`, `ability`, `summon`, o id da mutação, ou `bleed:<id>`/`poison:<id>` para os ticks de DoT. O `DamageSystem` soma tudo em `RunState.damageBySource`.
+- DoTs: cada `StatusInstance` guarda quantos acúmulos cada origem aplicou (`origins`), e o dano de cada tick é dividido nessa proporção. Veneno do Sangue Ácido e veneno das Glândulas Venenosas aparecem separados. Acúmulos sem origem conhecida caem em `bleed:unknown`/`poison:unknown`.
+- A tela de fim de run tem as abas **DANO POR FONTE** (padrão) e **MUTAÇÕES**, que trocam com TAB ou clique. O botão **COPIAR** copia um resumo em texto (versão, dino, resultado, mutações e dano por fonte) para os jogadores mandarem.
+- Os nomes das fontes ficam em `src/data/damageSources.ts`.

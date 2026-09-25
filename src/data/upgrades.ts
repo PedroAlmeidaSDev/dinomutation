@@ -275,9 +275,9 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'sangue_acido', name: 'Sangue Ácido', rarity: 'rare', maxLevel: 3,
     tags: ['poison', 'aoe'],
-    description: 'Ao receber dano, 50% de chance de explodir em ácido: 120% de dano em área + 3 de Veneno.',
+    description: 'Ao receber dano, 50% de chance de explodir em ácido: 120% de dano em área + 3 de Veneno (máx. 1 vez por segundo).',
     effects: [
-      { type: 'trigger', trigger: 'onDamageTaken', effect: 'aoeBurst', params: { chance: 0.5, radius: 150, coef: 1.2, poison: 3, color: 0x90ff40, particles: 'poison', tag: 'poison' } },
+      { type: 'trigger', trigger: 'onDamageTaken', effect: 'aoeBurst', params: { chance: 0.5, cooldown: 1, radius: 150, coef: 1.2, poison: 3, color: 0x90ff40, particles: 'poison', tag: 'poison' } },
     ],
     visual: ['acid'],
   },
@@ -377,10 +377,10 @@ export const UPGRADES: UpgradeDefinition[] = [
   {
     id: 'fortaleza_viva', name: 'Fortaleza Viva', rarity: 'legendary', maxLevel: 1,
     tags: ['armor'],
-    description: 'Cada ponto de Armadura concede +0.8% de dano (máx. +80%). +10 armadura.',
+    description: 'Cada ponto de Armadura concede +0.8% de dano (máx. +50%). +10 armadura.',
     requires: { ownedTags: ['armor'] },
     effects: [
-      { type: 'trigger', trigger: 'modifyDamage', effect: 'armorToDamage', params: { perArmor: 0.008, maxBonus: 0.8 } },
+      { type: 'trigger', trigger: 'modifyDamage', effect: 'armorToDamage', params: { perArmor: 0.008, maxBonus: 0.5 } },
       { type: 'stat', stat: 'armor', mode: 'add', value: 10 },
     ],
     visual: ['plates', 'spikes'],

@@ -20,7 +20,14 @@ export interface EnemyHitRequest {
   noProcs?: boolean;
   /** Extra multiplier applied by the caller (e.g. ability scaling). */
   mult?: number;
+  /**
+   * Who dealt it, for the end-of-run damage table (see data/damageSources.ts).
+   * A record splits the damage by weight (DoTs stacked by several upgrades).
+   */
+  source?: DamageSource;
 }
+
+export type DamageSource = string | Readonly<Record<string, number>>;
 
 /** Mutable damage calculation passed through outgoing modifiers. */
 export interface DamageCalc {
@@ -135,6 +142,7 @@ export class DamageSystem {
 
     const applied = target.takeDamage(amount);
     this.ctx.run.damageDealt += applied;
+    this.attribute(req.source ?? 'other', applied);
 
     // Feedback
     if (!isDot) target.flash();
@@ -167,8 +175,21 @@ export class DamageSystem {
     for (const p of this.statusProcs) {
       if (p.tags && p.tags.length && !p.tags.some((t) => tags.includes(t))) continue;
       if (Math.random() >= p.chance) continue;
-      this.ctx.status.apply(target, p.status, { stacks: p.stacks, duration: p.duration });
+      this.ctx.status.apply(target, p.status, { stacks: p.stacks, duration: p.duration, origin: p.key.split(':')[0] });
     }
+  }
+
+  private attribute(source: DamageSource, amount: number): void {
+    if (amount <= 0) return;
+    const table = this.ctx.run.damageBySource;
+    if (typeof source === 'string') {
+      table[source] = (table[source] ?? 0) + amount;
+      return;
+    }
+    let total = 0;
+    for (const w of Object.values(source)) total += w;
+    if (total <= 0) return this.attribute('other', amount);
+    for (const [key, w] of Object.entries(source)) table[key] = (table[key] ?? 0) + (amount * w) / total;
   }
 
   /** Returns damage actually taken. */
