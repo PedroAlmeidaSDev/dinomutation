@@ -1,13 +1,19 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { loadSave } from '../core/Save';
+import { CURRENT_PATCH } from '../../data/patchNotes';
+import { loadSave, markPatchSeen } from '../core/Save';
 import { formatTime } from '../../utils/math';
+import { PatchNotes } from '../ui/PatchNotes';
 import { centerDesign, designOffset, onLayout, safeInsets } from '../ui/layout';
 import { COLORS, FONT_BOLD, button, fullscreenButton, text } from '../ui/theme';
 import { prefersTouch } from '../ui/TouchControls';
 
 export class MenuScene extends Phaser.Scene {
   private walkers: { img: Phaser.GameObjects.Image; speed: number }[] = [];
+  private notes: PatchNotes | null = null;
+  /** Keys that close the patch notes must not also start the game. */
+  private notesClosedAt = -Infinity;
+  private leaving = false;
 
   constructor() {
     super('Menu');
@@ -15,6 +21,8 @@ export class MenuScene extends Phaser.Scene {
 
   create(): void {
     this.walkers = [];
+    this.notes = null;
+    this.leaving = false;
     centerDesign(this, [
       this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.6),
       this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.45),
@@ -42,6 +50,8 @@ export class MenuScene extends Phaser.Scene {
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
     text(this, GAME_WIDTH / 2, 420, info, 17, COLORS.muted).setOrigin(0.5);
 
+    button(this, GAME_WIDTH / 2, 490, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 260, height: 46, fontSize: 17, color: 0x8a9a6a });
+
     text(this, GAME_WIDTH / 2, GAME_HEIGHT - 70, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
       : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 16, '#d8d0b8').setOrigin(0.5);
@@ -49,12 +59,28 @@ export class MenuScene extends Phaser.Scene {
     const fs = fullscreenButton(this, 0, 0)?.setScrollFactor(0);
     if (fs) onLayout(this, (v) => fs.setPosition(v.width - 44 - safeInsets(this).right, 44));
 
-    this.input.keyboard?.once('keydown-ENTER', () => this.go());
-    this.input.keyboard?.once('keydown-SPACE', () => this.go());
+    this.input.keyboard?.on('keydown-ENTER', () => this.go());
+    this.input.keyboard?.on('keydown-SPACE', () => this.go());
     this.cameras.main.fadeIn(300);
+
+    // Returning players see what changed once per version; brand-new players skip it.
+    if (save.seenPatch !== CURRENT_PATCH.version) {
+      if (save.runs > 0) this.time.delayedCall(350, () => this.showNotes());
+      else markPatchSeen(CURRENT_PATCH.version);
+    }
+  }
+
+  private showNotes(): void {
+    if (this.notes?.isOpen || this.leaving) return;
+    this.notes = new PatchNotes(this, CURRENT_PATCH, () => {
+      this.notesClosedAt = this.time.now;
+      markPatchSeen(CURRENT_PATCH.version);
+    });
   }
 
   private go(): void {
+    if (this.leaving || this.notes?.isOpen || this.time.now - this.notesClosedAt < 250) return;
+    this.leaving = true;
     this.scene.start('CharacterSelect');
   }
 
