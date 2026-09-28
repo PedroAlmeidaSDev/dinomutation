@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
-import { generateTextures } from '../art/Textures';
+import { generateTextures, loadSprites } from '../art/Textures';
 
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
+  }
+
+  preload(): void {
+    loadSprites(this);
   }
 
   create(): void {
