@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { PatchNote } from '../../data/patchNotes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { fitShade, onLayout } from './layout';
-import { COLORS, FONT, button, text } from './theme';
+import { COLORS, FONT, button, drawSlab, text, title } from './theme';
 
 const PANEL_W = 820;
 const PANEL_TOP = 60;
@@ -48,15 +48,12 @@ export class PatchNotes {
 
     const shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.8).setOrigin(0).setInteractive();
     const panel = scene.add.graphics();
-    panel.fillStyle(COLORS.panel, 0.97);
-    panel.fillRoundedRect(left, PANEL_TOP, PANEL_W, PANEL_BOTTOM - PANEL_TOP, 16);
-    panel.lineStyle(3, COLORS.accent, 0.9);
-    panel.strokeRoundedRect(left, PANEL_TOP, PANEL_W, PANEL_BOTTOM - PANEL_TOP, 16);
-    panel.lineStyle(1, COLORS.border, 1);
-    panel.lineBetween(left + 30, VIEW_TOP - 10, left + PANEL_W - 30, VIEW_TOP - 10);
-    panel.lineBetween(left + 30, VIEW_BOTTOM + 10, left + PANEL_W - 30, VIEW_BOTTOM + 10);
+    drawSlab(panel, left, PANEL_TOP, PANEL_W, PANEL_BOTTOM - PANEL_TOP, { speckle: true, radius: 18, border: 5, frame: COLORS.accent, frameWidth: 3 });
+    panel.fillStyle(COLORS.outline, 0.6);
+    panel.fillRect(left + 30, VIEW_TOP - 11, PANEL_W - 60, 2);
+    panel.fillRect(left + 30, VIEW_BOTTOM + 9, PANEL_W - 60, 2);
 
-    const heading = text(scene, cx, PANEL_TOP + 22, 'NOVIDADES', 34, COLORS.accentText, true).setOrigin(0.5, 0);
+    const heading = title(scene, cx, PANEL_TOP + 18, 'NOVIDADES', 38).setOrigin(0.5, 0);
     const sub = text(scene, cx, PANEL_TOP + 66, `Versão ${note.version} · ${note.title} · ${note.date}`, 17, COLORS.muted).setOrigin(0.5, 0);
 
     // Scrollable body.
@@ -68,7 +65,7 @@ export class PatchNotes {
       for (const item of section.items) {
         const bullet = text(scene, left + 56, y, '•', 17, section.color);
         const line = scene.add.text(left + 76, y, item, {
-          fontFamily: FONT, fontSize: '17px', color: COLORS.text, lineSpacing: 4,
+          fontFamily: FONT, fontStyle: 'bold', fontSize: '17px', color: COLORS.text, lineSpacing: 4,
           wordWrap: { width: TEXT_W - 26, useAdvancedWrap: true },
         });
         this.content.add([bullet, line]);

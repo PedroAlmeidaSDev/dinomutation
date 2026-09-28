@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { safeInsets } from './layout';
-import { COLORS } from './theme';
+import { COLORS, drawSlab } from './theme';
 
 const STICK_RADIUS = 90;
 const DEAD_ZONE = 0.18;
@@ -125,22 +125,30 @@ export class TouchControls {
     // Pause button
     const h = PAUSE_SIZE / 2;
     const PAUSE_X = this.pauseX;
-    g.fillStyle(0x000000, 0.5);
-    g.fillRoundedRect(PAUSE_X - h, PAUSE_Y - h, PAUSE_SIZE, PAUSE_SIZE, 10);
-    g.lineStyle(2, COLORS.border, 1);
-    g.strokeRoundedRect(PAUSE_X - h, PAUSE_Y - h, PAUSE_SIZE, PAUSE_SIZE, 10);
-    g.fillStyle(0xffffff, 0.9);
-    g.fillRect(PAUSE_X - 12, PAUSE_Y - 14, 8, 28);
-    g.fillRect(PAUSE_X + 4, PAUSE_Y - 14, 8, 28);
+    drawSlab(g, PAUSE_X - h, PAUSE_Y - h, PAUSE_SIZE, PAUSE_SIZE, { radius: 12, border: 3, lip: 5, shadow: 4, alpha: 0.9 });
+    g.fillStyle(COLORS.outline, 1);
+    g.fillRoundedRect(PAUSE_X - 14, PAUSE_Y - 17, 12, 32, 3);
+    g.fillRoundedRect(PAUSE_X + 2, PAUSE_Y - 17, 12, 32, 3);
+    g.fillStyle(0xffffff, 0.95);
+    g.fillRoundedRect(PAUSE_X - 12, PAUSE_Y - 15, 8, 28, 2);
+    g.fillRoundedRect(PAUSE_X + 4, PAUSE_Y - 15, 8, 28, 2);
 
     // Joystick
     if (this.stickId !== null && !this.opts.isBlocked()) {
-      g.fillStyle(0x000000, 0.25);
+      g.fillStyle(0x000000, 0.3);
       g.fillCircle(this.baseX, this.baseY, STICK_RADIUS);
-      g.lineStyle(3, 0xffffff, 0.35);
+      g.lineStyle(5, COLORS.outline, 0.6);
       g.strokeCircle(this.baseX, this.baseY, STICK_RADIUS);
-      g.fillStyle(COLORS.accent, 0.75);
-      g.fillCircle(this.baseX + this.x * STICK_RADIUS, this.baseY + this.y * STICK_RADIUS, 38);
+      g.lineStyle(2, 0xffffff, 0.35);
+      g.strokeCircle(this.baseX, this.baseY, STICK_RADIUS - 4);
+      const kx = this.baseX + this.x * STICK_RADIUS;
+      const ky = this.baseY + this.y * STICK_RADIUS;
+      g.fillStyle(COLORS.outline, 0.85);
+      g.fillCircle(kx, ky, 42);
+      g.fillStyle(COLORS.accent, 0.85);
+      g.fillCircle(kx, ky, 38);
+      g.fillStyle(0xffffff, 0.3);
+      g.fillEllipse(kx, ky - 18, 44, 14);
     }
   }
 

@@ -5,7 +5,7 @@ import type { RunState } from '../core/RunState';
 import { recordRun } from '../core/Save';
 import { formatTime } from '../../utils/math';
 import { centerDesign } from '../ui/layout';
-import { COLORS, FONT_BOLD, RARITY_COLORS, button, hex, text } from '../ui/theme';
+import { COLORS, RARITY_COLORS, button, drawSlab, hex, text, title as titleText } from '../ui/theme';
 import type { Rarity } from '../../data/balance';
 import { damageBreakdown, type DamageRow } from '../../data/damageSources';
 import { CURRENT_PATCH } from '../../data/patchNotes';
@@ -28,10 +28,9 @@ export abstract class ResultScene extends Phaser.Scene {
       this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, this.victory ? 0x1a1408 : 0x1a0808, 0.75),
     ]);
 
-    const titleText = this.victory ? 'VITÓRIA!' : s.endless ? `ERA ${s.era}` : 'EXTINTO';
-    const title = this.add.text(GAME_WIDTH / 2, 70, titleText, {
-      fontFamily: FONT_BOLD, fontSize: '72px', color: this.victory ? '#ffd24a' : s.endless ? '#e0a0ff' : '#ff5a4a', stroke: '#000000', strokeThickness: 12,
-    }).setOrigin(0.5).setScale(1.6).setAlpha(0);
+    const heading = this.victory ? 'VITÓRIA!' : s.endless ? `ERA ${s.era}` : 'EXTINTO';
+    const title = titleText(this, GAME_WIDTH / 2, 70, heading, 78, this.victory ? 0xffc02a : s.endless ? 0xc070ff : 0xe8402e)
+      .setOrigin(0.5).setScale(1.6).setAlpha(0);
     this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 500, ease: 'Back.easeOut' });
     const subtitle = this.victory
       ? 'O Giganotosaurus caiu. Você é o predador supremo.'
@@ -49,12 +48,10 @@ export abstract class ResultScene extends Phaser.Scene {
     }
 
     const panel = this.add.graphics();
-    panel.fillStyle(COLORS.panel, 0.95);
-    panel.fillRoundedRect(150, 170, 420, 390, 12);
-    panel.fillRoundedRect(600, 170, 530, 390, 12);
-    panel.lineStyle(2, COLORS.border, 1);
-    panel.strokeRoundedRect(150, 170, 420, 390, 12);
-    panel.strokeRoundedRect(600, 170, 530, 390, 12);
+    drawSlab(panel, 150, 170, 420, 390, { speckle: true, alpha: 0.97 });
+    drawSlab(panel, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { speckle: true, alpha: 0.97 });
+    panel.fillStyle(COLORS.outline, 0.6);
+    panel.fillRect(PANEL.x + 16, PANEL.y + 46, PANEL.w - 32, 2);
 
     const rows: [string, string][] = [
       ['DINOSSAURO', dino.name],
@@ -145,8 +142,13 @@ export abstract class ResultScene extends Phaser.Scene {
     c.add(g);
     shown.forEach((r, i) => {
       const y = top + i * 29;
-      g.fillStyle(i === 0 ? COLORS.accent : 0x6a7a52, i === 0 ? 0.35 : 0.3);
-      g.fillRoundedRect(left, y - 3, Math.max(4, barW * (r.share / shown[0].share)), 25, 4);
+      const bw = Math.max(8, barW * (r.share / shown[0].share));
+      g.fillStyle(COLORS.outline, 0.5);
+      g.fillRoundedRect(left - 1, y - 4, bw + 2, 27, 6);
+      g.fillStyle(i === 0 ? COLORS.accent : 0x6a7a52, i === 0 ? 0.45 : 0.4);
+      g.fillRoundedRect(left, y - 3, bw, 25, 5);
+      g.fillStyle(0xffffff, 0.1);
+      g.fillRoundedRect(left + 2, y - 2, bw - 4, 7, 3);
       c.add(text(this, left + 8, y, r.label, 15, '#ffffff', true));
       c.add(text(this, left + barW - 8, y, `${Math.round(r.amount).toLocaleString('pt-BR')}  ·  ${formatShare(r.share)}`, 15, '#f2ecd8', true).setOrigin(1, 0));
     });

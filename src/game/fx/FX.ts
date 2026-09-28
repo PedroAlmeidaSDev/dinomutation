@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { BALANCE } from '../../data/balance';
+import { FONT_BOLD } from '../ui/theme';
 
 type Emitter = Phaser.GameObjects.Particles.ParticleEmitter;
 
 const NUMBER_STYLE: Phaser.Types.GameObjects.Text.TextStyle = {
-  fontFamily: '"Arial Black", "Segoe UI", sans-serif',
+  fontFamily: FONT_BOLD,
   fontSize: '16px',
   color: '#ffffff',
   stroke: '#000000',

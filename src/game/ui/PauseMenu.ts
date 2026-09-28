@@ -6,7 +6,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { Run } from '../core/Run';
 import type { PickupKind } from '../systems/PickupSystem';
 import { designOffset, fitShade, safeInsets } from './layout';
-import { COLORS, FONT_BOLD, RARITY_COLORS, button, fullscreenButton, hex, text } from './theme';
+import { COLORS, RARITY_COLORS, button, drawSlab, fullscreenButton, hex, text, title } from './theme';
 
 const PANEL_Y = 110;
 const PANEL_H = 480;
@@ -29,17 +29,14 @@ export class PauseMenu {
     const objs: Phaser.GameObjects.GameObject[] = [];
     this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.8).setOrigin(0).setInteractive();
     objs.push(this.shade);
-    objs.push(scene.add.text(GAME_WIDTH / 2, 60, 'PAUSADO', {
-      fontFamily: FONT_BOLD, fontSize: '46px', color: COLORS.accentText, stroke: '#000000', strokeThickness: 8,
-    }).setOrigin(0.5));
+    objs.push(title(scene, GAME_WIDTH / 2, 58, 'PAUSADO', 50).setOrigin(0.5));
 
     const panels: [number, number][] = [[30, 340], [390, 480], [890, 360]];
     const panel = scene.add.graphics();
     for (const [x, w] of panels) {
-      panel.fillStyle(COLORS.panel, 0.95);
-      panel.fillRoundedRect(x, PANEL_Y, w, PANEL_H, 12);
-      panel.lineStyle(2, COLORS.border, 1);
-      panel.strokeRoundedRect(x, PANEL_Y, w, PANEL_H, 12);
+      drawSlab(panel, x, PANEL_Y, w, PANEL_H, { speckle: true, alpha: 0.97 });
+      panel.fillStyle(COLORS.outline, 0.6);
+      panel.fillRect(x + 16, PANEL_Y + 42, w - 32, 2);
     }
     objs.push(panel);
 
@@ -166,7 +163,7 @@ export class PauseMenu {
     g.lineStyle(2, 0xffffff, 0.9);
     g.strokeCircle(px, py, 9);
 
-    g.lineStyle(2, COLORS.border, 1);
+    g.lineStyle(3, COLORS.outline, 1);
     g.strokeRect(x, y, W * k, H * k);
 
     // Legend

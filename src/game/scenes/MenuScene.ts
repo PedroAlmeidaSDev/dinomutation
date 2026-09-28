@@ -5,7 +5,7 @@ import { loadSave, markPatchSeen } from '../core/Save';
 import { formatTime } from '../../utils/math';
 import { PatchNotes } from '../ui/PatchNotes';
 import { centerDesign, designOffset, onLayout, safeInsets } from '../ui/layout';
-import { COLORS, FONT_BOLD, button, fullscreenButton, text } from '../ui/theme';
+import { COLORS, button, fullscreenButton, panel, text, title as titleText } from '../ui/theme';
 import { prefersTouch } from '../ui/TouchControls';
 
 export class MenuScene extends Phaser.Scene {
@@ -36,25 +36,30 @@ export class MenuScene extends Phaser.Scene {
       this.walkers.push({ img, speed: 30 + Math.random() * 60 });
     }
 
-    const title = this.add.text(GAME_WIDTH / 2, 150, 'DINO MUTATION', {
-      fontFamily: FONT_BOLD, fontSize: '84px', color: '#ffcf6a', stroke: '#2a1a08', strokeThickness: 14,
-    }).setOrigin(0.5);
+    const title = this.add.container(GAME_WIDTH / 2, 150, [
+      titleText(this, 0, 0, 'DINO MUTATION', 96, COLORS.accent).setOrigin(0.5),
+    ]);
     this.tweens.add({ targets: title, scale: 1.03, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
-    text(this, GAME_WIDTH / 2, 225, 'Roguelite de mutações jurássicas', 22, '#e8dcc0', true).setOrigin(0.5);
-
-    button(this, GAME_WIDTH / 2, 340, 'JOGAR', () => this.go(), { width: 300, height: 70, fontSize: 30 });
+    const tagW = 460;
+    panel(this, GAME_WIDTH / 2 - tagW / 2, 212, tagW, 40, { radius: 20, border: 3, shadow: 4, fill: 0x5a3a1c });
+    text(this, GAME_WIDTH / 2, 230, 'Roguelite de mutações jurássicas', 21, '#ffe8c0', true).setOrigin(0.5);
 
     const save = loadSave();
     const info = save.runs > 0
       ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}${save.bestEra ? `   ·   Melhor Era: ${save.bestEra}` : ''}`
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
-    text(this, GAME_WIDTH / 2, 420, info, 17, COLORS.muted).setOrigin(0.5);
+    const infoText = text(this, GAME_WIDTH / 2, 426, info, 16, COLORS.text).setOrigin(0.5);
+    const plaqueW = Math.max(460, infoText.width + 60);
+    panel(this, GAME_WIDTH / 2 - plaqueW / 2, 290, plaqueW, 260);
+    infoText.setDepth(1);
 
-    button(this, GAME_WIDTH / 2, 490, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 260, height: 46, fontSize: 17, color: 0x8a9a6a });
+    button(this, GAME_WIDTH / 2, 350, 'JOGAR', () => this.go(), { width: 300, height: 76, fontSize: 36 }).setDepth(1);
+    button(this, GAME_WIDTH / 2, 494, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 270, height: 48, fontSize: 18, color: 0x6f8a4a }).setDepth(1);
 
-    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 70, prefersTouch()
+    const hint = text(this, GAME_WIDTH / 2, GAME_HEIGHT - 52, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
-      : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 16, '#d8d0b8').setOrigin(0.5);
+      : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 15, '#e8dcc0').setOrigin(0.5).setDepth(1);
+    panel(this, GAME_WIDTH / 2 - hint.width / 2 - 24, GAME_HEIGHT - 72, hint.width + 48, 40, { radius: 20, border: 3, shadow: 3, alpha: 0.85 });
 
     const fs = fullscreenButton(this, 0, 0)?.setScrollFactor(0);
     if (fs) onLayout(this, (v) => fs.setPosition(v.width - 44 - safeInsets(this).right, 44));
