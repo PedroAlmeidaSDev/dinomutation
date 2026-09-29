@@ -7,7 +7,7 @@ import { recordRun, type RunRewards } from '../core/Save';
 import { masteryProgress } from '../../data/meta';
 import { formatTime } from '../../utils/math';
 import { centerDesign } from '../ui/layout';
-import { COLORS, FONT_BOLD, RARITY_COLORS, button, hex, text } from '../ui/theme';
+import { COLORS, RARITY_COLORS, button, drawBar, drawPanel, hex, text, title as titleText } from '../ui/theme';
 import type { Rarity } from '../../data/balance';
 import { damageBreakdown, type DamageRow } from '../../data/damageSources';
 import { CURRENT_PATCH } from '../../data/patchNotes';
@@ -27,36 +27,33 @@ export abstract class ResultScene extends Phaser.Scene {
 
     centerDesign(this, [
       this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.4),
-      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, this.victory ? 0x1a1408 : 0x1a0808, 0.75),
+      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.8),
     ]);
 
-    const titleText = this.victory ? 'VITÓRIA!' : s.endless ? `ERA ${s.era}` : 'EXTINTO';
-    const title = this.add.text(GAME_WIDTH / 2, 70, titleText, {
-      fontFamily: FONT_BOLD, fontSize: '72px', color: this.victory ? '#ffd24a' : s.endless ? '#e0a0ff' : '#ff5a4a', stroke: '#000000', strokeThickness: 12,
-    }).setOrigin(0.5).setScale(1.6).setAlpha(0);
+    const heading = this.victory ? 'VITÓRIA!' : s.endless ? `ERA ${s.era}` : 'EXTINTO';
+    const title = titleText(this, GAME_WIDTH / 2, 70, heading, 72, this.victory ? COLORS.acid : s.endless ? 0xc070ff : COLORS.accent)
+      .setOrigin(0.5).setScale(1.6).setAlpha(0);
     this.tweens.add({ targets: title, scale: 1, alpha: 1, duration: 500, ease: 'Back.easeOut' });
     const subtitle = this.victory
       ? 'O Giganotosaurus caiu. Você é o predador supremo.'
       : s.endless
         ? `Vitória garantida — e sua linhagem resistiu até a Era ${s.era} da Era Sem Fim.`
         : 'Sua linhagem termina aqui... por enquanto.';
-    text(this, GAME_WIDTH / 2, 128, subtitle, 18, '#e8dcc0', true).setOrigin(0.5);
+    text(this, GAME_WIDTH / 2, 128, subtitle, 17, COLORS.muted).setOrigin(0.5);
 
     if (this.victory) {
       const e = this.add.particles(GAME_WIDTH / 2, -10, 'spark', {
         x: { min: -this.scale.width / 2, max: this.scale.width / 2 }, speedY: { min: 80, max: 200 }, speedX: { min: -40, max: 40 },
-        lifespan: 4000, scale: { start: 1.2, end: 0.4 }, tint: [0xffd24a, 0xffffff, 0xff8a3a], frequency: 60, rotate: { min: 0, max: 360 },
+        lifespan: 4000, scale: { start: 1.2, end: 0.4 }, tint: [COLORS.acid, 0xffffff, COLORS.accent], frequency: 60, rotate: { min: 0, max: 360 },
       });
       e.setDepth(-1);
     }
 
     const panel = this.add.graphics();
-    panel.fillStyle(COLORS.panel, 0.95);
-    panel.fillRoundedRect(150, 170, 420, 390, 12);
-    panel.fillRoundedRect(600, 170, 530, 390, 12);
-    panel.lineStyle(2, COLORS.border, 1);
-    panel.strokeRoundedRect(150, 170, 420, 390, 12);
-    panel.strokeRoundedRect(600, 170, 530, 390, 12);
+    drawPanel(panel, 150, 170, 420, PANEL.h, { cut: 14 });
+    drawPanel(panel, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { cut: 14 });
+    panel.fillStyle(COLORS.border, 1);
+    panel.fillRect(PANEL.x + 16, PANEL.y + 46, PANEL.w - 32, 1);
 
     const rows: [string, string][] = [
       ['DINOSSAURO', `${dino.name} · ${DIFFICULTY_BY_ID[s.difficulty].name}`],
@@ -75,7 +72,7 @@ export abstract class ResultScene extends Phaser.Scene {
     ];
     rows.forEach(([k, v], i) => {
       text(this, 175, 186 + i * 36, k, 16, COLORS.muted, true);
-      text(this, 545, 186 + i * 36, v, 18, '#ffffff', true).setOrigin(1, 0);
+      text(this, 545, 186 + i * 36, v, 18, COLORS.text, true).setOrigin(1, 0);
     });
 
     this.buildRightPanel(s);
@@ -89,7 +86,7 @@ export abstract class ResultScene extends Phaser.Scene {
 
     const again = { dino: s.dinosaur, difficulty: s.difficulty };
     button(this, GAME_WIDTH / 2 - 150, GAME_HEIGHT - 80, 'JOGAR NOVAMENTE', () => this.scene.start('Run', again), { width: 280 });
-    button(this, GAME_WIDTH / 2 + 150, GAME_HEIGHT - 80, 'MENU', () => this.scene.start('Menu'), { width: 220, color: 0x7a8a6a });
+    button(this, GAME_WIDTH / 2 + 150, GAME_HEIGHT - 80, 'MENU', () => this.scene.start('Menu'), { width: 220, ghost: true });
     this.input.keyboard?.once('keydown-ENTER', () => this.scene.start('Run', again));
     this.cameras.main.fadeIn(400);
   }
@@ -98,12 +95,9 @@ export abstract class ResultScene extends Phaser.Scene {
   private drawRewards(dinoId: RunState['dinosaur'], masteryXp: number, r: RunRewards): void {
     const dino = DINOSAURS[dinoId];
     const g = this.add.graphics();
-    g.fillStyle(COLORS.panel, 0.95);
-    g.fillRoundedRect(150, 532, 980, 68, 12);
-    g.lineStyle(2, COLORS.accent, 0.8);
-    g.strokeRoundedRect(150, 532, 980, 68, 12);
+    drawPanel(g, 150, 532, 980, 68, { cut: 12, stroke: COLORS.accent, strokeAlpha: 0.6 });
 
-    text(this, 175, 540, r.firstWinBonus ? `FÓSSEIS · 1ª VITÓRIA +${r.firstWinBonus}` : 'FÓSSEIS', 14, r.firstWinBonus ? '#6aff8a' : COLORS.muted, true);
+    text(this, 175, 540, r.firstWinBonus ? `FÓSSEIS · 1ª VITÓRIA +${r.firstWinBonus}` : 'FÓSSEIS', 14, r.firstWinBonus ? COLORS.acidText : COLORS.muted, true);
     const fossils = text(this, 175, 558, '+0', 28, COLORS.accentText, true);
     this.tweens.addCounter({
       from: 0, to: r.fossils, duration: 900, delay: 300, ease: 'Cubic.easeOut',
@@ -112,28 +106,25 @@ export abstract class ResultScene extends Phaser.Scene {
 
     const prog = masteryProgress(masteryXp);
     const leveled = r.levelAfter > r.levelBefore;
-    text(this, 360, 540, `MAESTRIA ${dino.name} · NÍVEL ${prog.level}${leveled ? '  ▲' : ''}   (+${r.masteryXp} XP)`, 14, leveled ? '#6aff8a' : COLORS.muted, true);
+    text(this, 360, 540, `MAESTRIA ${dino.name} · NÍVEL ${prog.level}${leveled ? '  ▲' : ''}   (+${r.masteryXp} XP)`, 14, leveled ? COLORS.acidText : COLORS.muted, true);
     const barX = 360;
     const barW = 380;
     const bar = this.add.graphics();
     const fillTo = prog.needed > 0 ? prog.into / prog.needed : 1;
     const fillFrom = leveled ? 0 : Math.max(0, (prog.into - r.masteryXp) / (prog.needed || 1));
-    const drawBar = (f: number) => {
+    const paint = (f: number) => {
       bar.clear();
-      bar.fillStyle(0x30382a, 1);
-      bar.fillRoundedRect(barX, 566, barW, 16, 5);
-      bar.fillStyle(dino.accentColor, 1);
-      bar.fillRoundedRect(barX, 566, Math.max(6, barW * f), 16, 5);
+      drawBar(bar, barX, 570, barW, 8, f, dino.accentColor);
     };
-    drawBar(fillFrom);
-    this.tweens.addCounter({ from: fillFrom, to: fillTo, duration: 900, delay: 300, ease: 'Cubic.easeOut', onUpdate: (t) => drawBar(t.getValue() ?? fillTo) });
-    text(this, barX + barW + 8, 564, prog.needed > 0 ? `${prog.into}/${prog.needed}` : 'MÁX.', 14, '#ffffff', true);
+    paint(fillFrom);
+    this.tweens.addCounter({ from: fillFrom, to: fillTo, duration: 900, delay: 300, ease: 'Cubic.easeOut', onUpdate: (t) => paint(t.getValue() ?? fillTo) });
+    text(this, barX + barW + 8, 564, prog.needed > 0 ? `${prog.into}/${prog.needed}` : 'MÁX.', 14, COLORS.text, true);
 
     const unlocks = r.unlockedDifficulty ? [`Dificuldade ${r.unlockedDifficulty}`, ...r.unlocks] : r.unlocks;
     if (unlocks.length > 0) {
       const more = unlocks.length > 2 ? ` +${unlocks.length - 2}` : '';
-      text(this, 850, 540, 'DESBLOQUEADO!', 14, '#6aff8a', true);
-      text(this, 850, 560, unlocks.slice(0, 2).join('\n') + more, 13, '#ffffff', true);
+      text(this, 850, 540, 'DESBLOQUEADO!', 14, COLORS.acidText, true);
+      text(this, 850, 560, unlocks.slice(0, 2).join('\n') + more, 13, COLORS.text, true);
     } else {
       text(this, 850, 548, 'Gaste fósseis no COVIL\npara fortalecer seus dinos.', 14, COLORS.muted);
     }
@@ -172,7 +163,7 @@ export abstract class ResultScene extends Phaser.Scene {
         label.setText(ok ? 'COPIADO!' : 'FALHOU');
         this.time.delayedCall(1500, () => { if (label.active) label.setText('COPIAR'); });
       });
-    }, { width: 112, height: 34, fontSize: 15, color: 0x8a9a6a });
+    }, { width: 112, height: 34, fontSize: 14, ghost: true, color: COLORS.acid });
   }
 
   private buildDamageTab(rows: DamageRow[]): Phaser.GameObjects.Container {
@@ -196,10 +187,11 @@ export abstract class ResultScene extends Phaser.Scene {
     c.add(g);
     shown.forEach((r, i) => {
       const y = top + i * 29;
-      g.fillStyle(i === 0 ? COLORS.accent : 0x6a7a52, i === 0 ? 0.35 : 0.3);
-      g.fillRoundedRect(left, y - 3, Math.max(4, barW * (r.share / shown[0].share)), 25, 4);
-      c.add(text(this, left + 8, y, r.label, 15, '#ffffff', true));
-      c.add(text(this, left + barW - 8, y, `${Math.round(r.amount).toLocaleString('pt-BR')}  ·  ${formatShare(r.share)}`, 15, '#f2ecd8', true).setOrigin(1, 0));
+      const bw = Math.max(8, barW * (r.share / shown[0].share));
+      g.fillStyle(i === 0 ? COLORS.accent : 0xffffff, i === 0 ? 0.35 : 0.07);
+      g.fillRect(left, y - 3, bw, 25);
+      c.add(text(this, left + 8, y, r.label, 15, COLORS.text, true));
+      c.add(text(this, left + barW - 8, y, `${Math.round(r.amount).toLocaleString('pt-BR')}  ·  ${formatShare(r.share)}`, 15, COLORS.muted, true).setOrigin(1, 0));
     });
     return c;
   }

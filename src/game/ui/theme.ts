@@ -2,28 +2,35 @@ import Phaser from 'phaser';
 import type { Rarity } from '../../data/balance';
 import { fullscreenSupported, isFullscreen, toggleFullscreen } from '../core/Fullscreen';
 
-export const FONT = '"Trebuchet MS", "Segoe UI", sans-serif';
-export const FONT_BOLD = '"Arial Black", "Segoe UI Black", "Trebuchet MS", sans-serif';
+/** Chakra Petch is bundled (see main.ts) in two weights: 500 for text, 700 for emphasis. */
+export const FONT = '"Chakra Petch", "Segoe UI", sans-serif';
+export const WEIGHT = { regular: '500', bold: '700' } as const;
 
+/** "Magma" palette: warm charcoal surfaces, lava accent, acid-green secondary. */
 export const COLORS = {
-  bg: 0x12150e,
-  panel: 0x1b2016,
-  panelLight: 0x262d1e,
-  border: 0x4a5638,
-  text: '#f2ecd8',
-  muted: '#a8a48c',
-  accent: 0xe8b04a,
-  accentText: '#ffcf6a',
-  hp: 0xd8403a,
-  hpBack: 0x3a1512,
-  xp: 0x4ae08a,
-  xpBack: 0x123020,
+  bg: 0x0f0a09,
+  panel: 0x17100f,
+  panelLight: 0x251a17,
+  border: 0x3d2b25,
+  track: 0x2a1e1b,
+  text: '#fff3ea',
+  muted: '#c4a79b',
+  dim: '#6e5a52',
+  accent: 0xff5a36,
+  accentText: '#ff7a55',
+  acid: 0xc8ff3d,
+  acidText: '#c8ff3d',
+  danger: '#ff5a6e',
+  hp: 0xff3f5e,
+  hpBack: 0x2c1216,
+  xp: 0xc8ff3d,
+  xpBack: 0x20260f,
 };
 
 export const RARITY_COLORS: Record<Rarity, number> = {
-  common: 0xb8b8a8,
-  rare: 0x4aa8ff,
-  legendary: 0xffa81a,
+  common: 0xb9aea6,
+  rare: 0x4ab8ff,
+  legendary: 0xffb020,
 };
 
 export const RARITY_LABELS: Record<Rarity, string> = {
@@ -36,17 +43,100 @@ export function hex(color: number): string {
   return `#${color.toString(16).padStart(6, '0')}`;
 }
 
+export function shade(color: number, amount: number): number {
+  const c = Phaser.Display.Color.ValueToColor(color);
+  return (amount >= 0 ? c.lighten(amount) : c.darken(-amount)).color;
+}
+
+/** Dark or light label colour, whichever reads better on `fill`. */
+export function inkOn(fill: number): string {
+  const c = Phaser.Display.Color.ValueToColor(fill);
+  return 0.299 * c.red + 0.587 * c.green + 0.114 * c.blue > 150 ? hex(COLORS.panel) : '#ffffff';
+}
+
 export function text(
   scene: Phaser.Scene, x: number, y: number, content: string,
   size = 18, color = COLORS.text, bold = false,
 ): Phaser.GameObjects.Text {
+  // A thin dark stroke keeps text legible when it sits directly on the ground texture.
   return scene.add.text(x, y, content, {
-    fontFamily: bold ? FONT_BOLD : FONT,
+    fontFamily: FONT,
+    fontStyle: bold ? WEIGHT.bold : WEIGHT.regular,
     fontSize: `${size}px`,
     color,
-    stroke: '#000000',
-    strokeThickness: bold ? 4 : 2,
+    stroke: hex(COLORS.bg),
+    strokeThickness: 2,
   });
+}
+
+/** Heading: solid colour, soft shadow, slight tracking. */
+export function title(
+  scene: Phaser.Scene, x: number, y: number, content: string, size = 42, color = 0xfff3ea,
+): Phaser.GameObjects.Text {
+  return scene.add.text(x, y, content, {
+    fontFamily: FONT, fontStyle: WEIGHT.bold, fontSize: `${size}px`, color: hex(color), align: 'center',
+    letterSpacing: Math.round(size * 0.03),
+    shadow: { offsetX: 0, offsetY: Math.max(2, Math.round(size / 16)), color: 'rgba(0,0,0,0.6)', blur: Math.round(size / 4), fill: true },
+  });
+}
+
+export interface PanelOptions {
+  fill?: number;
+  alpha?: number;
+  /** Size of the chamfer cut into the top-left and bottom-right corners. */
+  cut?: number;
+  /** Outline colour; `null` draws no outline. */
+  stroke?: number | null;
+  strokeWidth?: number;
+  strokeAlpha?: number;
+  /** Optional coloured bar along the top edge (rarity, selection…). */
+  accent?: number;
+}
+
+function chamfer(x: number, y: number, w: number, h: number, cut: number): Phaser.Types.Math.Vector2Like[] {
+  const c = Math.max(0, Math.min(cut, w / 2, h / 2));
+  return [
+    { x: x + c, y }, { x: x + w, y }, { x: x + w, y: y + h - c },
+    { x: x + w - c, y: y + h }, { x, y: y + h }, { x, y: y + c },
+  ];
+}
+
+/**
+ * Flat panel with chamfered corners: the one surface every panel, card, button and
+ * HUD frame is built from.
+ */
+export function drawPanel(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, o: PanelOptions = {}): void {
+  const cut = o.cut ?? 10;
+  const pts = chamfer(x, y, w, h, cut);
+  g.fillStyle(o.fill ?? COLORS.panel, o.alpha ?? 0.92);
+  g.fillPoints(pts, true);
+  if (o.stroke !== null) {
+    g.lineStyle(o.strokeWidth ?? 1, o.stroke ?? COLORS.border, o.strokeAlpha ?? 1);
+    g.strokePoints(pts, true, true);
+  }
+  if (o.accent !== undefined) {
+    g.fillStyle(o.accent, 1);
+    g.fillRect(x + Math.min(cut, w / 2), y, w - Math.min(cut, w / 2), 3);
+  }
+}
+
+/** A static panel (its own Graphics object). */
+export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, o: PanelOptions = {}): Phaser.GameObjects.Graphics {
+  const g = scene.add.graphics();
+  drawPanel(g, x, y, w, h, o);
+  return g;
+}
+
+/** Flat bar (HP, XP, boss…). `ratio` in [0, 1]. */
+export function drawBar(
+  g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, ratio: number, fill: number, back: number = COLORS.track,
+): void {
+  g.fillStyle(back, 0.9);
+  g.fillRect(x, y, w, h);
+  const fw = w * Phaser.Math.Clamp(ratio, 0, 1);
+  if (fw <= 0) return;
+  g.fillStyle(fill, 1);
+  g.fillRect(x, y, fw, h);
 }
 
 export interface ButtonOptions {
@@ -54,36 +144,45 @@ export interface ButtonOptions {
   height?: number;
   color?: number;
   fontSize?: number;
+  /** Outline-only button for secondary actions. */
+  ghost?: boolean;
 }
 
-/** Simple rectangular button with hover/press feedback. */
+/** Chamfered button: solid (primary) or outlined (ghost). Hover brightens, press shrinks a touch. */
 export function button(
   scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, opts: ButtonOptions = {},
 ): Phaser.GameObjects.Container {
   const w = opts.width ?? 240;
   const h = opts.height ?? 56;
   const color = opts.color ?? COLORS.accent;
+  const size = opts.fontSize ?? 22;
+  const cut = Math.round(h * 0.22);
   const bg = scene.add.graphics();
+  const t = scene.add.text(0, 0, label, {
+    fontFamily: FONT, fontStyle: WEIGHT.bold, fontSize: `${size}px`,
+    color: opts.ghost ? COLORS.text : inkOn(color), letterSpacing: Math.max(1, Math.round(size * 0.06)),
+  }).setOrigin(0.5);
   const draw = (hover: boolean) => {
     bg.clear();
-    bg.fillStyle(0x000000, 0.4);
-    bg.fillRoundedRect(-w / 2 + 4, -h / 2 + 5, w, h, 10);
-    bg.fillStyle(hover ? Phaser.Display.Color.ValueToColor(color).lighten(15).color : color, 1);
-    bg.fillRoundedRect(-w / 2, -h / 2, w, h, 10);
-    bg.lineStyle(3, 0x000000, 0.5);
-    bg.strokeRoundedRect(-w / 2, -h / 2, w, h, 10);
+    if (opts.ghost) {
+      drawPanel(bg, -w / 2, -h / 2, w, h, {
+        cut, fill: hover ? COLORS.panelLight : COLORS.panel, alpha: 0.85,
+        stroke: hover ? color : 0xfff3ea, strokeAlpha: hover ? 1 : 0.35, strokeWidth: 1.5,
+      });
+    } else {
+      drawPanel(bg, -w / 2, -h / 2, w, h, { cut, fill: hover ? shade(color, 8) : color, alpha: 1, stroke: null });
+    }
   };
   draw(false);
-  const t = scene.add.text(0, 0, label, {
-    fontFamily: FONT_BOLD, fontSize: `${opts.fontSize ?? 22}px`, color: '#1a1408',
-  }).setOrigin(0.5);
+  // [bg, label] — ResultScene reaches into list[1] to relabel the copy button.
   const c = scene.add.container(x, y, [bg, t]);
   c.setSize(w, h);
   c.setInteractive({ useHandCursor: true });
-  c.on('pointerover', () => { draw(true); scene.tweens.add({ targets: c, scale: 1.05, duration: 80 }); });
+  c.on('pointerover', () => draw(true));
   c.on('pointerout', () => { draw(false); scene.tweens.add({ targets: c, scale: 1, duration: 80 }); });
   c.on('pointerdown', () => {
-    scene.tweens.add({ targets: c, scale: 0.95, duration: 50, yoyo: true, onComplete: onClick });
+    scene.tweens.add({ targets: c, scale: 0.96, duration: 60, yoyo: true });
+    scene.time.delayedCall(90, onClick);
   });
   return c;
 }
@@ -98,14 +197,11 @@ export function fullscreenButton(scene: Phaser.Scene, x: number, y: number, size
   const g = scene.add.graphics();
   const draw = (hover: boolean) => {
     const h = size / 2;
-    const a = size * 0.22;
-    const inset = size * 0.26;
+    const a = size * 0.2;
+    const inset = size * 0.28;
     g.clear();
-    g.fillStyle(0x000000, hover ? 0.7 : 0.5);
-    g.fillRoundedRect(-h, -h, size, size, 10);
-    g.lineStyle(2, hover ? COLORS.accent : COLORS.border, 1);
-    g.strokeRoundedRect(-h, -h, size, size, 10);
-    g.lineStyle(4, 0xffffff, 0.9);
+    drawPanel(g, -h, -h, size, size, { cut: 8, fill: hover ? COLORS.panelLight : COLORS.panel, stroke: hover ? COLORS.accent : COLORS.border });
+    g.lineStyle(3, hover ? COLORS.accent : 0xfff3ea, 1);
     // Corner brackets pointing out (enter) or in (exit).
     const out = !isFullscreen();
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
