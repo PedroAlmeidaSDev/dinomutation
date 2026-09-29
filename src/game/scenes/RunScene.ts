@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ARENA_DECOR_COUNT, ARENA_OBSTACLES } from '../../data/arena';
 import { BALANCE } from '../../data/balance';
+import type { DifficultyId } from '../../data/difficulty';
 import type { DinoId } from '../../data/dinosaurs';
 import { DEBUG } from '../config';
 import { Run } from '../core/Run';
@@ -9,6 +10,7 @@ import type { HUDScene } from './HUDScene';
 
 export interface RunSceneData {
   dino: DinoId;
+  difficulty?: DifficultyId;
 }
 
 /**
@@ -29,6 +31,7 @@ export class RunScene extends Phaser.Scene {
   private endTimer = -1;
   private timeScale = 1;
   private dino: DinoId = 'trex';
+  private difficulty: DifficultyId = 'normal';
 
   constructor() {
     super('Run');
@@ -36,6 +39,7 @@ export class RunScene extends Phaser.Scene {
 
   create(data: RunSceneData): void {
     this.dino = data.dino ?? 'trex';
+    this.difficulty = data.difficulty ?? 'normal';
     this.paused = false;
     this.selecting = false;
     this.victoryPending = false;
@@ -46,7 +50,7 @@ export class RunScene extends Phaser.Scene {
     this.rerolls = BALANCE.upgrades.rerollsPerRun;
 
     this.buildArena();
-    this.run = new Run(this, this.dino);
+    this.run = new Run(this, this.dino, this.difficulty);
 
     const cam = this.cameras.main;
     cam.setBounds(0, 0, BALANCE.world.width, BALANCE.world.height);

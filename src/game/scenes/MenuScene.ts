@@ -48,13 +48,15 @@ export class MenuScene extends Phaser.Scene {
     const info = save.runs > 0
       ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}${save.bestEra ? `   ·   Melhor Era: ${save.bestEra}` : ''}`
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
-    const infoText = text(this, GAME_WIDTH / 2, 426, info, 16, COLORS.text).setOrigin(0.5);
+    const infoText = text(this, GAME_WIDTH / 2, 462, info, 16, COLORS.text).setOrigin(0.5);
     const plaqueW = Math.max(460, infoText.width + 60);
-    panel(this, GAME_WIDTH / 2 - plaqueW / 2, 290, plaqueW, 260);
+    panel(this, GAME_WIDTH / 2 - plaqueW / 2, 280, plaqueW, 300);
     infoText.setDepth(1);
+    if (save.fossils > 0) text(this, GAME_WIDTH / 2, 490, `Fósseis: ${save.fossils}`, 18, COLORS.accentText, true).setOrigin(0.5).setDepth(1);
 
-    button(this, GAME_WIDTH / 2, 350, 'JOGAR', () => this.go(), { width: 300, height: 76, fontSize: 36 }).setDepth(1);
-    button(this, GAME_WIDTH / 2, 494, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 270, height: 48, fontSize: 18, color: 0x6f8a4a }).setDepth(1);
+    button(this, GAME_WIDTH / 2, 330, 'JOGAR', () => this.go(), { width: 300, height: 70, fontSize: 32 }).setDepth(1);
+    button(this, GAME_WIDTH / 2, 412, 'COVIL', () => this.scene.start('Lair'), { width: 240, height: 54, fontSize: 22, color: 0xc49a4a }).setDepth(1);
+    button(this, GAME_WIDTH / 2, 545, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 270, height: 46, fontSize: 17, color: 0x6f8a4a }).setDepth(1);
 
     const hint = text(this, GAME_WIDTH / 2, GAME_HEIGHT - 52, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'

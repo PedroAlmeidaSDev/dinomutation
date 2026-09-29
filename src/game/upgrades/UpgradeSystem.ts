@@ -6,7 +6,8 @@ import type { GameEventName, GameEvents } from '../core/EventBus';
 import type { StatusProc } from '../combat/DamageSystem';
 import { weightedPick } from '../../utils/math';
 import { EFFECT_HANDLERS, type EffectRuntime } from './UpgradeEffects';
-import type { UpgradeDefinition } from './UpgradeTypes';
+import type { EffectDefinition, UpgradeDefinition } from './UpgradeTypes';
+import type { MetaBonus } from '../../data/meta';
 
 export interface UpgradeChoice {
   def: UpgradeDefinition;
@@ -32,6 +33,8 @@ export class UpgradeSystem {
   private readonly order: string[] = [];
   private readonly states = new Map<string, Record<string, number>>();
   private readonly cleanups: (() => void)[] = [];
+  /** Out-of-run bonuses (shop + passives): active all run, invisible to cards, tags and build UI. */
+  private readonly meta = new Map<string, MetaBonus>();
   primaryTag: string | null = null;
 
   constructor(private readonly ctx: RunContext, private readonly dino: DinoDef) {}
@@ -54,6 +57,8 @@ export class UpgradeSystem {
 
   /** Effective strength of an upgrade: its level, boosted by Evolução Apex for the primary tag. */
   power(id: string): number {
+    const meta = this.meta.get(id);
+    if (meta) return meta.level;
     const lvl = this.level(id);
     if (lvl === 0) return 0;
     const def = UPGRADE_BY_ID[id];
@@ -90,6 +95,18 @@ export class UpgradeSystem {
 
   // ─────────────────────────── acquisition ───────────────────────────
 
+  /** Applies out-of-run bonuses once, at run start. */
+  applyMeta(bonuses: MetaBonus[]): void {
+    if (bonuses.length === 0) return;
+    for (const b of bonuses) {
+      this.meta.set(b.id, b);
+      this.wireTriggers(b);
+      for (const eff of b.effects) if (eff.type === 'flag') this.ctx.player.flags.add(eff.flag);
+    }
+    this.rebuildStats();
+    this.rebuildProcs();
+  }
+
   acquire(id: string): void {
     const def = UPGRADE_BY_ID[id];
     if (!def) return;
@@ -115,7 +132,7 @@ export class UpgradeSystem {
     this.ctx.bus.emit('onUpgradeAcquired', { id, level: newLevel });
   }
 
-  private wireTriggers(def: UpgradeDefinition): void {
+  private wireTriggers(def: { id: string; effects: EffectDefinition[] }): void {
     const state: Record<string, number> = {};
     this.states.set(def.id, state);
     def.effects.forEach((eff) => {
@@ -155,12 +172,18 @@ export class UpgradeSystem {
         if (eff.type === 'stat') stats.setModifier(`ups:${id}:${i}`, eff.stat, eff.mode, eff.value * power);
       });
     }
+    for (const b of this.meta.values()) {
+      b.effects.forEach((eff, i) => {
+        if (eff.type === 'stat') stats.setModifier(`ups:${b.id}:${i}`, eff.stat, eff.mode, eff.value * b.level);
+      });
+    }
   }
 
   private rebuildProcs(): void {
     const procs: StatusProc[] = [];
-    for (const id of this.order) {
-      const def = UPGRADE_BY_ID[id];
+    const sources = [...this.order.map((id) => UPGRADE_BY_ID[id]), ...this.meta.values()];
+    for (const def of sources) {
+      const id = def.id;
       const power = this.power(id);
       def.effects.forEach((eff, i) => {
         if (eff.type !== 'statusOnHit') return;

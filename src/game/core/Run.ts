@@ -1,7 +1,9 @@
 import type Phaser from 'phaser';
 import { BALANCE } from '../../data/balance';
 import { ARENA_OBSTACLES } from '../../data/arena';
+import type { DifficultyId } from '../../data/difficulty';
 import { DINOSAURS, type DinoId } from '../../data/dinosaurs';
+import { metaLoadout } from './Save';
 import { AbilitySystem } from '../abilities/AbilitySystem';
 import { AutoAttackSystem } from '../combat/AutoAttackSystem';
 import { DamageSystem } from '../combat/DamageSystem';
@@ -53,9 +55,9 @@ export class Run implements RunContext {
   private deferred: (() => void)[] = [];
   private statusHosts: (Player | Enemy)[] = [];
 
-  constructor(readonly scene: Phaser.Scene, dinoId: DinoId) {
+  constructor(readonly scene: Phaser.Scene, dinoId: DinoId, difficulty: DifficultyId = 'normal') {
     const def = DINOSAURS[dinoId];
-    this.run = createRunState(dinoId);
+    this.run = createRunState(dinoId, difficulty);
     this.fx = new FX(scene);
     this.telegraphs = new Telegraphs(scene);
     this.player = new Player(scene, def, BALANCE.world.width / 2, BALANCE.world.height / 2);
@@ -73,6 +75,8 @@ export class Run implements RunContext {
     this.autoAttack = new AutoAttackSystem(this);
 
     this.bus.on('onKill', ({ enemy }) => this.handleKill(enemy));
+    // Shop levels and mastery passives bought outside the run.
+    this.upgrades.applyMeta(metaLoadout(dinoId));
   }
 
   // ─────────────────────────── RunContext helpers ───────────────────────────
