@@ -2,29 +2,35 @@ import Phaser from 'phaser';
 import type { Rarity } from '../../data/balance';
 import { fullscreenSupported, isFullscreen, toggleFullscreen } from '../core/Fullscreen';
 
-export const FONT = '"Nunito", "Trebuchet MS", "Segoe UI", sans-serif';
-export const FONT_BOLD = '"Lilita One", "Arial Black", "Segoe UI Black", sans-serif';
+/** Chakra Petch is bundled (see main.ts) in two weights: 500 for text, 700 for emphasis. */
+export const FONT = '"Chakra Petch", "Segoe UI", sans-serif';
+export const WEIGHT = { regular: '500', bold: '700' } as const;
 
+/** "Magma" palette: warm charcoal surfaces, lava accent, acid-green secondary. */
 export const COLORS = {
-  bg: 0x12150e,
-  panel: 0x2f2b22,
-  panelLight: 0x3d382c,
-  border: 0x5a5242,
-  outline: 0x0c0906,
-  text: '#f2ecd8',
-  muted: '#b4ab92',
-  accent: 0xf0a830,
-  accentText: '#ffcf6a',
-  hp: 0xd8403a,
-  hpBack: 0x3a1512,
-  xp: 0x4ae08a,
-  xpBack: 0x123020,
+  bg: 0x0f0a09,
+  panel: 0x17100f,
+  panelLight: 0x251a17,
+  border: 0x3d2b25,
+  track: 0x2a1e1b,
+  text: '#fff3ea',
+  muted: '#c4a79b',
+  dim: '#6e5a52',
+  accent: 0xff5a36,
+  accentText: '#ff7a55',
+  acid: 0xc8ff3d,
+  acidText: '#c8ff3d',
+  danger: '#ff5a6e',
+  hp: 0xff3f5e,
+  hpBack: 0x2c1216,
+  xp: 0xc8ff3d,
+  xpBack: 0x20260f,
 };
 
 export const RARITY_COLORS: Record<Rarity, number> = {
-  common: 0xb8b8a8,
-  rare: 0x4aa8ff,
-  legendary: 0xffa81a,
+  common: 0xb9aea6,
+  rare: 0x4ab8ff,
+  legendary: 0xffb020,
 };
 
 export const RARITY_LABELS: Record<Rarity, string> = {
@@ -42,134 +48,95 @@ export function shade(color: number, amount: number): number {
   return (amount >= 0 ? c.lighten(amount) : c.darken(-amount)).color;
 }
 
+/** Dark or light label colour, whichever reads better on `fill`. */
+export function inkOn(fill: number): string {
+  const c = Phaser.Display.Color.ValueToColor(fill);
+  return 0.299 * c.red + 0.587 * c.green + 0.114 * c.blue > 150 ? hex(COLORS.panel) : '#ffffff';
+}
+
 export function text(
   scene: Phaser.Scene, x: number, y: number, content: string,
   size = 18, color = COLORS.text, bold = false,
 ): Phaser.GameObjects.Text {
+  // A thin dark stroke keeps text legible when it sits directly on the ground texture.
   return scene.add.text(x, y, content, {
-    fontFamily: bold ? FONT_BOLD : FONT,
-    fontStyle: bold ? 'normal' : 'bold',
+    fontFamily: FONT,
+    fontStyle: bold ? WEIGHT.bold : WEIGHT.regular,
     fontSize: `${size}px`,
     color,
-    stroke: '#000000',
-    strokeThickness: bold ? Math.max(4, Math.round(size / 4.5)) : 3,
-    shadow: bold ? { offsetX: 0, offsetY: 2, color: '#000000', blur: 0, stroke: true, fill: true } : undefined,
+    stroke: hex(COLORS.bg),
+    strokeThickness: 2,
   });
 }
 
-/** Big chunky heading: vertical gradient fill (light → `color`), thick outline and a hard drop shadow. */
+/** Heading: solid colour, soft shadow, slight tracking. */
 export function title(
-  scene: Phaser.Scene, x: number, y: number, content: string, size = 42, color = COLORS.accent,
+  scene: Phaser.Scene, x: number, y: number, content: string, size = 42, color = 0xfff3ea,
 ): Phaser.GameObjects.Text {
-  const t = scene.add.text(x, y, content, {
-    fontFamily: FONT_BOLD, fontSize: `${size}px`, color: '#ffffff', align: 'center',
-    stroke: '#1a0e04', strokeThickness: Math.round(size / 5),
-    shadow: { offsetX: 0, offsetY: Math.round(size / 12), color: '#000000', blur: 0, stroke: true, fill: true },
+  return scene.add.text(x, y, content, {
+    fontFamily: FONT, fontStyle: WEIGHT.bold, fontSize: `${size}px`, color: hex(color), align: 'center',
+    letterSpacing: Math.round(size * 0.03),
+    shadow: { offsetX: 0, offsetY: Math.max(2, Math.round(size / 16)), color: 'rgba(0,0,0,0.6)', blur: Math.round(size / 4), fill: true },
   });
-  const grad = t.context.createLinearGradient(0, 0, 0, t.height);
-  grad.addColorStop(0.15, hex(shade(color, 38)));
-  grad.addColorStop(0.7, hex(color));
-  grad.addColorStop(1, hex(shade(color, -18)));
-  t.setFill(grad);
-  return t;
 }
 
-export interface SlabOptions {
+export interface PanelOptions {
   fill?: number;
   alpha?: number;
-  radius?: number;
-  /** Width of the black outline. */
-  border?: number;
-  /** Height of the darker "lip" along the bottom edge (3D button look). */
-  lip?: number;
-  /** Drop shadow offset below the slab; 0 disables it. */
-  shadow?: number;
-  /** Stone speckles — skip for things redrawn every frame. */
-  speckle?: boolean;
-  /** Optional coloured frame drawn just inside the outline. */
-  frame?: number;
-  frameWidth?: number;
+  /** Size of the chamfer cut into the top-left and bottom-right corners. */
+  cut?: number;
+  /** Outline colour; `null` draws no outline. */
+  stroke?: number | null;
+  strokeWidth?: number;
+  strokeAlpha?: number;
+  /** Optional coloured bar along the top edge (rarity, selection…). */
+  accent?: number;
+}
+
+function chamfer(x: number, y: number, w: number, h: number, cut: number): Phaser.Types.Math.Vector2Like[] {
+  const c = Math.max(0, Math.min(cut, w / 2, h / 2));
+  return [
+    { x: x + c, y }, { x: x + w, y }, { x: x + w, y: y + h - c },
+    { x: x + w - c, y: y + h }, { x, y: y + h }, { x, y: y + c },
+  ];
 }
 
 /**
- * Cartoon stone slab: black outline, bevelled face with a highlight on top and a
- * darker bottom rim, optional lip and speckles. Panels, buttons, cards and HUD
- * frames all use it so the UI matches the outlined sprites.
+ * Flat panel with chamfered corners: the one surface every panel, card, button and
+ * HUD frame is built from.
  */
-export function drawSlab(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, o: SlabOptions = {}): void {
-  const fill = o.fill ?? COLORS.panel;
-  const a = o.alpha ?? 1;
-  const r = o.radius ?? 14;
-  const b = o.border ?? 4;
-  const lip = o.lip ?? 0;
-  const sh = o.shadow ?? 6;
-  if (sh > 0) {
-    g.fillStyle(0x000000, 0.35 * a);
-    g.fillRoundedRect(x + 2, y + sh, w, h, r);
+export function drawPanel(g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, o: PanelOptions = {}): void {
+  const cut = o.cut ?? 10;
+  const pts = chamfer(x, y, w, h, cut);
+  g.fillStyle(o.fill ?? COLORS.panel, o.alpha ?? 0.92);
+  g.fillPoints(pts, true);
+  if (o.stroke !== null) {
+    g.lineStyle(o.strokeWidth ?? 1, o.stroke ?? COLORS.border, o.strokeAlpha ?? 1);
+    g.strokePoints(pts, true, true);
   }
-  g.fillStyle(COLORS.outline, a);
-  g.fillRoundedRect(x, y, w, h, r);
-  const ix = x + b;
-  const iy = y + b;
-  const iw = w - 2 * b;
-  const ih = h - 2 * b;
-  const ir = Math.max(2, r - b);
-  if (iw <= 0 || ih <= 0) return;
-  // Darker bottom layer, then the face on top of it, leaving a shaded rim / lip.
-  g.fillStyle(shade(fill, -22), a);
-  g.fillRoundedRect(ix, iy, iw, ih, ir);
-  const faceH = ih - Math.max(3, lip);
-  g.fillStyle(fill, a);
-  g.fillRoundedRect(ix, iy, iw, faceH, ir);
-  // Bevel highlight across the top.
-  g.fillStyle(0xffffff, 0.12 * a);
-  g.fillRoundedRect(ix + 3, iy + 2, iw - 6, Math.min(faceH * 0.42, 22), { tl: ir, tr: ir, bl: 3, br: 3 });
-  g.fillStyle(0xffffff, 0.22 * a);
-  g.fillRoundedRect(ix + ir * 0.6, iy + 2, Math.max(1, iw - ir * 1.2), 2.5, 1);
-  if (o.speckle) {
-    let seed = (Math.floor(Math.abs(x * 7 + y * 13 + w * 3 + h)) % 2147483646) + 1;
-    const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    const n = Math.min(90, Math.floor((iw * ih) / 700));
-    for (let i = 0; i < n; i++) {
-      const dark = rnd() < 0.6;
-      g.fillStyle(dark ? 0x000000 : 0xffffff, (dark ? 0.16 : 0.06) * a);
-      g.fillCircle(ix + ir / 2 + rnd() * (iw - ir), iy + ir / 2 + rnd() * (faceH - ir), 0.8 + rnd() * 2);
-    }
-  }
-  if (o.frame !== undefined) {
-    const fw = o.frameWidth ?? 3;
-    g.lineStyle(fw, o.frame, a);
-    g.strokeRoundedRect(ix + fw / 2, iy + fw / 2, iw - fw, ih - fw, Math.max(2, ir - fw / 2));
+  if (o.accent !== undefined) {
+    g.fillStyle(o.accent, 1);
+    g.fillRect(x + Math.min(cut, w / 2), y, w - Math.min(cut, w / 2), 3);
   }
 }
 
-/** A static stone panel (its own Graphics object). */
-export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, o: SlabOptions = {}): Phaser.GameObjects.Graphics {
+/** A static panel (its own Graphics object). */
+export function panel(scene: Phaser.Scene, x: number, y: number, w: number, h: number, o: PanelOptions = {}): Phaser.GameObjects.Graphics {
   const g = scene.add.graphics();
-  drawSlab(g, x, y, w, h, { speckle: true, alpha: 0.97, ...o });
+  drawPanel(g, x, y, w, h, o);
   return g;
 }
 
-/** Outlined bar with a glossy fill (HP, XP, boss…). `ratio` in [0, 1]. */
+/** Flat bar (HP, XP, boss…). `ratio` in [0, 1]. */
 export function drawBar(
-  g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, ratio: number, fill: number, back: number, r = 6,
+  g: Phaser.GameObjects.Graphics, x: number, y: number, w: number, h: number, ratio: number, fill: number, back: number = COLORS.track,
 ): void {
-  const b = 3;
-  g.fillStyle(COLORS.outline, 1);
-  g.fillRoundedRect(x - b, y - b, w + 2 * b, h + 2 * b, r + b);
-  g.fillStyle(back, 1);
-  g.fillRoundedRect(x, y, w, h, r);
+  g.fillStyle(back, 0.9);
+  g.fillRect(x, y, w, h);
   const fw = w * Phaser.Math.Clamp(ratio, 0, 1);
   if (fw <= 0) return;
-  const fr = Math.min(r, fw / 2, h / 2);
-  g.fillStyle(shade(fill, -18), 1);
-  g.fillRoundedRect(x, y, fw, h, fr);
   g.fillStyle(fill, 1);
-  g.fillRoundedRect(x, y, fw, h * 0.72, fr);
-  if (fw > 8) {
-    g.fillStyle(0xffffff, 0.35);
-    g.fillRoundedRect(x + 3, y + 2, fw - 6, Math.max(2, h * 0.22), Math.min(2, fr));
-  }
+  g.fillRect(x, y, fw, h);
 }
 
 export interface ButtonOptions {
@@ -177,44 +144,45 @@ export interface ButtonOptions {
   height?: number;
   color?: number;
   fontSize?: number;
+  /** Outline-only button for secondary actions. */
+  ghost?: boolean;
 }
 
-/** Chunky stone button with a 3D lip: hover brightens, press sinks it into the lip. */
+/** Chamfered button: solid (primary) or outlined (ghost). Hover brightens, press shrinks a touch. */
 export function button(
   scene: Phaser.Scene, x: number, y: number, label: string, onClick: () => void, opts: ButtonOptions = {},
 ): Phaser.GameObjects.Container {
   const w = opts.width ?? 240;
   const h = opts.height ?? 56;
   const color = opts.color ?? COLORS.accent;
-  const lip = Math.max(5, Math.round(h * 0.12));
   const size = opts.fontSize ?? 22;
+  const cut = Math.round(h * 0.22);
   const bg = scene.add.graphics();
   const t = scene.add.text(0, 0, label, {
-    fontFamily: FONT_BOLD, fontSize: `${size}px`, color: '#ffffff',
-    stroke: '#1a0e04', strokeThickness: Math.max(4, Math.round(size / 4.5)),
-    shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 0, stroke: true, fill: true },
+    fontFamily: FONT, fontStyle: WEIGHT.bold, fontSize: `${size}px`,
+    color: opts.ghost ? COLORS.text : inkOn(color), letterSpacing: Math.max(1, Math.round(size * 0.06)),
   }).setOrigin(0.5);
-  const draw = (hover: boolean, pressed = false) => {
+  const draw = (hover: boolean) => {
     bg.clear();
-    const dy = pressed ? lip - 2 : 0;
-    drawSlab(bg, -w / 2, -h / 2 + dy, w, h - dy, {
-      fill: hover ? shade(color, 10) : color, radius: 12, border: 4, lip: pressed ? 3 : lip, shadow: pressed ? 2 : 5,
-    });
-    t.setY(-lip / 2 + dy / 2 + 1);
+    if (opts.ghost) {
+      drawPanel(bg, -w / 2, -h / 2, w, h, {
+        cut, fill: hover ? COLORS.panelLight : COLORS.panel, alpha: 0.85,
+        stroke: hover ? color : 0xfff3ea, strokeAlpha: hover ? 1 : 0.35, strokeWidth: 1.5,
+      });
+    } else {
+      drawPanel(bg, -w / 2, -h / 2, w, h, { cut, fill: hover ? shade(color, 8) : color, alpha: 1, stroke: null });
+    }
   };
   draw(false);
   // [bg, label] — ResultScene reaches into list[1] to relabel the copy button.
   const c = scene.add.container(x, y, [bg, t]);
   c.setSize(w, h);
   c.setInteractive({ useHandCursor: true });
-  c.on('pointerover', () => { draw(true); scene.tweens.add({ targets: c, scale: 1.04, duration: 80 }); });
+  c.on('pointerover', () => draw(true));
   c.on('pointerout', () => { draw(false); scene.tweens.add({ targets: c, scale: 1, duration: 80 }); });
   c.on('pointerdown', () => {
-    draw(true, true);
-    scene.time.delayedCall(90, () => {
-      if (c.active) draw(true);
-      onClick();
-    });
+    scene.tweens.add({ targets: c, scale: 0.96, duration: 60, yoyo: true });
+    scene.time.delayedCall(90, onClick);
   });
   return c;
 }
@@ -232,13 +200,13 @@ export function fullscreenButton(scene: Phaser.Scene, x: number, y: number, size
     const a = size * 0.2;
     const inset = size * 0.28;
     g.clear();
-    drawSlab(g, -h, -h, size, size, { fill: hover ? COLORS.panelLight : COLORS.panel, radius: 12, border: 3, lip: 5, shadow: 4 });
-    g.lineStyle(4, hover ? 0xffe0a0 : 0xffffff, 0.95);
+    drawPanel(g, -h, -h, size, size, { cut: 8, fill: hover ? COLORS.panelLight : COLORS.panel, stroke: hover ? COLORS.accent : COLORS.border });
+    g.lineStyle(3, hover ? COLORS.accent : 0xfff3ea, 1);
     // Corner brackets pointing out (enter) or in (exit).
     const out = !isFullscreen();
     for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
       const cx = sx * (h - inset);
-      const cy = sy * (h - inset) - 2;
+      const cy = sy * (h - inset);
       const d = out ? -1 : 1;
       g.lineBetween(cx, cy, cx + d * sx * a, cy);
       g.lineBetween(cx, cy, cx, cy + d * sy * a);
@@ -264,12 +232,6 @@ export function fullscreenButton(scene: Phaser.Scene, x: number, y: number, size
  * Tiny vector icon for a tag. Used on upgrade cards and HUD indicators.
  */
 export function drawTagIcon(g: Phaser.GameObjects.Graphics, tag: string, x: number, y: number, s: number, color: number): void {
-  // Hard black drop shadow first, so the flat icon reads like the outlined sprites.
-  drawTagShape(g, tag, x + s * 0.05, y + s * 0.08, s, 0x000000);
-  drawTagShape(g, tag, x, y, s, color);
-}
-
-function drawTagShape(g: Phaser.GameObjects.Graphics, tag: string, x: number, y: number, s: number, color: number): void {
   g.fillStyle(color, 1);
   g.lineStyle(Math.max(2, s * 0.12), color, 1);
   switch (tag) {

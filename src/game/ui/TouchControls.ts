@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { safeInsets } from './layout';
-import { COLORS, drawSlab } from './theme';
+import { COLORS, drawPanel } from './theme';
 
 const STICK_RADIUS = 90;
 const DEAD_ZONE = 0.18;
@@ -125,30 +125,21 @@ export class TouchControls {
     // Pause button
     const h = PAUSE_SIZE / 2;
     const PAUSE_X = this.pauseX;
-    drawSlab(g, PAUSE_X - h, PAUSE_Y - h, PAUSE_SIZE, PAUSE_SIZE, { radius: 12, border: 3, lip: 5, shadow: 4, alpha: 0.9 });
-    g.fillStyle(COLORS.outline, 1);
-    g.fillRoundedRect(PAUSE_X - 14, PAUSE_Y - 17, 12, 32, 3);
-    g.fillRoundedRect(PAUSE_X + 2, PAUSE_Y - 17, 12, 32, 3);
-    g.fillStyle(0xffffff, 0.95);
-    g.fillRoundedRect(PAUSE_X - 12, PAUSE_Y - 15, 8, 28, 2);
-    g.fillRoundedRect(PAUSE_X + 4, PAUSE_Y - 15, 8, 28, 2);
+    drawPanel(g, PAUSE_X - h, PAUSE_Y - h, PAUSE_SIZE, PAUSE_SIZE, { cut: 10, alpha: 0.8 });
+    g.fillStyle(0xfff3ea, 1);
+    g.fillRect(PAUSE_X - 11, PAUSE_Y - 14, 7, 28);
+    g.fillRect(PAUSE_X + 4, PAUSE_Y - 14, 7, 28);
 
     // Joystick
     if (this.stickId !== null && !this.opts.isBlocked()) {
-      g.fillStyle(0x000000, 0.3);
+      g.fillStyle(COLORS.bg, 0.35);
       g.fillCircle(this.baseX, this.baseY, STICK_RADIUS);
-      g.lineStyle(5, COLORS.outline, 0.6);
+      g.lineStyle(1.5, 0xfff3ea, 0.35);
       g.strokeCircle(this.baseX, this.baseY, STICK_RADIUS);
-      g.lineStyle(2, 0xffffff, 0.35);
-      g.strokeCircle(this.baseX, this.baseY, STICK_RADIUS - 4);
       const kx = this.baseX + this.x * STICK_RADIUS;
       const ky = this.baseY + this.y * STICK_RADIUS;
-      g.fillStyle(COLORS.outline, 0.85);
-      g.fillCircle(kx, ky, 42);
       g.fillStyle(COLORS.accent, 0.85);
       g.fillCircle(kx, ky, 38);
-      g.fillStyle(0xffffff, 0.3);
-      g.fillEllipse(kx, ky - 18, 44, 14);
     }
   }
 

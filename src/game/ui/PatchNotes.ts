@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import type { PatchNote } from '../../data/patchNotes';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { fitShade, onLayout } from './layout';
-import { COLORS, FONT, button, drawSlab, text, title } from './theme';
+import { COLORS, FONT, WEIGHT, button, drawPanel, text, title } from './theme';
 
 const PANEL_W = 820;
 const PANEL_TOP = 60;
@@ -46,14 +46,14 @@ export class PatchNotes {
     const cx = GAME_WIDTH / 2;
     const left = cx - PANEL_W / 2;
 
-    const shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.8).setOrigin(0).setInteractive();
+    const shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.85).setOrigin(0).setInteractive();
     const panel = scene.add.graphics();
-    drawSlab(panel, left, PANEL_TOP, PANEL_W, PANEL_BOTTOM - PANEL_TOP, { speckle: true, radius: 18, border: 5, frame: COLORS.accent, frameWidth: 3 });
-    panel.fillStyle(COLORS.outline, 0.6);
-    panel.fillRect(left + 30, VIEW_TOP - 11, PANEL_W - 60, 2);
-    panel.fillRect(left + 30, VIEW_BOTTOM + 9, PANEL_W - 60, 2);
+    drawPanel(panel, left, PANEL_TOP, PANEL_W, PANEL_BOTTOM - PANEL_TOP, { cut: 18, alpha: 0.97, accent: COLORS.accent });
+    panel.fillStyle(COLORS.border, 1);
+    panel.fillRect(left + 30, VIEW_TOP - 11, PANEL_W - 60, 1);
+    panel.fillRect(left + 30, VIEW_BOTTOM + 9, PANEL_W - 60, 1);
 
-    const heading = title(scene, cx, PANEL_TOP + 18, 'NOVIDADES', 38).setOrigin(0.5, 0);
+    const heading = title(scene, cx, PANEL_TOP + 18, 'NOVIDADES', 34).setOrigin(0.5, 0);
     const sub = text(scene, cx, PANEL_TOP + 66, `Versão ${note.version} · ${note.title} · ${note.date}`, 17, COLORS.muted).setOrigin(0.5, 0);
 
     // Scrollable body.
@@ -65,7 +65,7 @@ export class PatchNotes {
       for (const item of section.items) {
         const bullet = text(scene, left + 56, y, '•', 17, section.color);
         const line = scene.add.text(left + 76, y, item, {
-          fontFamily: FONT, fontStyle: 'bold', fontSize: '17px', color: COLORS.text, lineSpacing: 4,
+          fontFamily: FONT, fontStyle: WEIGHT.regular, fontSize: '17px', color: COLORS.text, lineSpacing: 4,
           wordWrap: { width: TEXT_W - 26, useAdvancedWrap: true },
         });
         this.content.add([bullet, line]);
@@ -115,10 +115,10 @@ export class PatchNotes {
     const h = VIEW_BOTTOM - VIEW_TOP;
     const thumb = Math.max(40, (h * h) / (h + this.maxScroll));
     const ty = VIEW_TOP + (h - thumb) * (this.scroll / this.maxScroll);
-    this.bar.fillStyle(0x000000, 0.35);
-    this.bar.fillRoundedRect(x, VIEW_TOP, 6, h, 3);
-    this.bar.fillStyle(COLORS.accent, 0.9);
-    this.bar.fillRoundedRect(x, ty, 6, thumb, 3);
+    this.bar.fillStyle(COLORS.track, 1);
+    this.bar.fillRect(x, VIEW_TOP, 4, h);
+    this.bar.fillStyle(COLORS.accent, 1);
+    this.bar.fillRect(x, ty, 4, thumb);
   }
 
   close(): void {

@@ -5,7 +5,7 @@ import { loadSave, markPatchSeen } from '../core/Save';
 import { formatTime } from '../../utils/math';
 import { PatchNotes } from '../ui/PatchNotes';
 import { centerDesign, designOffset, onLayout, safeInsets } from '../ui/layout';
-import { COLORS, button, fullscreenButton, panel, text, title as titleText } from '../ui/theme';
+import { COLORS, button, fullscreenButton, text, title as titleText } from '../ui/theme';
 import { prefersTouch } from '../ui/TouchControls';
 
 export class MenuScene extends Phaser.Scene {
@@ -25,7 +25,7 @@ export class MenuScene extends Phaser.Scene {
     this.leaving = false;
     centerDesign(this, [
       this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.6),
-      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0a0c08, 0.45),
+      this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.72),
     ]);
 
     // Background parade of creatures
@@ -36,32 +36,30 @@ export class MenuScene extends Phaser.Scene {
       this.walkers.push({ img, speed: 30 + Math.random() * 60 });
     }
 
-    const title = this.add.container(GAME_WIDTH / 2, 150, [
-      titleText(this, 0, 0, 'DINO MUTATION', 96, COLORS.accent).setOrigin(0.5),
-    ]);
-    this.tweens.add({ targets: title, scale: 1.03, yoyo: true, repeat: -1, duration: 1400, ease: 'Sine.easeInOut' });
-    const tagW = 460;
-    panel(this, GAME_WIDTH / 2 - tagW / 2, 212, tagW, 40, { radius: 20, border: 3, shadow: 4, fill: 0x5a3a1c });
-    text(this, GAME_WIDTH / 2, 230, 'Roguelite de mutações jurássicas', 21, '#ffe8c0', true).setOrigin(0.5);
+    // Two-tone logo: "Dino" in cream, "Mutation" in lava.
+    const dino = titleText(this, 0, 0, 'Dino', 88).setOrigin(0, 0.5);
+    const mutation = titleText(this, 0, 0, 'Mutation', 88, COLORS.accent).setOrigin(0, 0.5);
+    const logoW = dino.width + mutation.width;
+    dino.setX(-logoW / 2);
+    mutation.setX(-logoW / 2 + dino.width);
+    const title = this.add.container(GAME_WIDTH / 2, 160, [dino, mutation]);
+    this.tweens.add({ targets: title, scale: 1.02, yoyo: true, repeat: -1, duration: 1600, ease: 'Sine.easeInOut' });
+    text(this, GAME_WIDTH / 2, 222, 'ROGUELITE DE MUTAÇÕES JURÁSSICAS', 16, COLORS.muted, true).setOrigin(0.5).setLetterSpacing(4);
 
     const save = loadSave();
+    button(this, GAME_WIDTH / 2, 320, 'JOGAR', () => this.go(), { width: 300, height: 64, fontSize: 28 }).setDepth(1);
+    button(this, GAME_WIDTH / 2, 396, 'COVIL', () => this.scene.start('Lair'), { width: 300, height: 50, fontSize: 19, ghost: true }).setDepth(1);
+    button(this, GAME_WIDTH / 2, 458, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 300, height: 44, fontSize: 15, ghost: true, color: COLORS.acid }).setDepth(1);
+
     const info = save.runs > 0
-      ? `Runs: ${save.runs}   ·   Vitórias: ${save.wins}   ·   Melhor tempo: ${formatTime(save.bestTime)}${save.bestEra ? `   ·   Melhor Era: ${save.bestEra}` : ''}`
+      ? `Runs ${save.runs}   ·   Vitórias ${save.wins}   ·   Melhor tempo ${formatTime(save.bestTime)}${save.bestEra ? `   ·   Melhor Era ${save.bestEra}` : ''}`
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
-    const infoText = text(this, GAME_WIDTH / 2, 462, info, 16, COLORS.text).setOrigin(0.5);
-    const plaqueW = Math.max(460, infoText.width + 60);
-    panel(this, GAME_WIDTH / 2 - plaqueW / 2, 280, plaqueW, 300);
-    infoText.setDepth(1);
-    if (save.fossils > 0) text(this, GAME_WIDTH / 2, 490, `Fósseis: ${save.fossils}`, 18, COLORS.accentText, true).setOrigin(0.5).setDepth(1);
+    text(this, GAME_WIDTH / 2, 526, info, 15, COLORS.muted).setOrigin(0.5).setDepth(1);
+    if (save.fossils > 0) text(this, GAME_WIDTH / 2, 552, `${save.fossils} FÓSSEIS`, 16, COLORS.acidText, true).setOrigin(0.5).setDepth(1).setLetterSpacing(2);
 
-    button(this, GAME_WIDTH / 2, 330, 'JOGAR', () => this.go(), { width: 300, height: 70, fontSize: 32 }).setDepth(1);
-    button(this, GAME_WIDTH / 2, 412, 'COVIL', () => this.scene.start('Lair'), { width: 240, height: 54, fontSize: 22, color: 0xc49a4a }).setDepth(1);
-    button(this, GAME_WIDTH / 2, 545, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 270, height: 46, fontSize: 17, color: 0x6f8a4a }).setDepth(1);
-
-    const hint = text(this, GAME_WIDTH / 2, GAME_HEIGHT - 52, prefersTouch()
+    text(this, GAME_WIDTH / 2, GAME_HEIGHT - 44, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
-      : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 15, '#e8dcc0').setOrigin(0.5).setDepth(1);
-    panel(this, GAME_WIDTH / 2 - hint.width / 2 - 24, GAME_HEIGHT - 72, hint.width + 48, 40, { radius: 20, border: 3, shadow: 3, alpha: 0.85 });
+      : 'WASD / Setas: mover   ·   Ataque automático   ·   SPACE: habilidade   ·   ESC: pausa', 14, COLORS.dim).setOrigin(0.5).setDepth(1);
 
     const fs = fullscreenButton(this, 0, 0)?.setScrollFactor(0);
     if (fs) onLayout(this, (v) => fs.setPosition(v.width - 44 - safeInsets(this).right, 44));

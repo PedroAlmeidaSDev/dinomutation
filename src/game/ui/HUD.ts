@@ -5,7 +5,7 @@ import type { Run } from '../core/Run';
 import type { Enemy } from '../entities/enemies/Enemy';
 import { formatTime } from '../../utils/math';
 import { safeInsets } from './layout';
-import { COLORS, RARITY_COLORS, drawBar, drawSlab, drawTagIcon, hex, text, title } from './theme';
+import { COLORS, RARITY_COLORS, drawBar, drawPanel, drawTagIcon, hex, text, title } from './theme';
 
 /** In-run heads-up display. Reads run state every frame; owns no game logic. */
 export class HUD {
@@ -37,17 +37,17 @@ export class HUD {
   constructor(private readonly scene: Phaser.Scene, private readonly run: Run) {
     this.g = scene.add.graphics();
     this.iconG = scene.add.graphics();
-    this.hpText = text(scene, 0, 37, '', 15, '#ffffff', true).setOrigin(0.5);
-    this.levelText = text(scene, 0, 72, '', 15, '#ffffff', true).setOrigin(0.5);
-    this.timerText = text(scene, 0, 22, '00:00', 30, '#ffffff', true).setOrigin(0.5, 0);
+    this.hpText = text(scene, 0, 37, '', 12, COLORS.text, true).setOrigin(0.5);
+    this.levelText = text(scene, 0, 72, '', 14, COLORS.acidText, true).setOrigin(0.5);
+    this.timerText = text(scene, 0, 24, '00:00', 28, COLORS.text, true).setOrigin(0.5, 0);
     this.killsText = text(scene, 0, 60, '', 15, COLORS.muted, false).setOrigin(0.5, 0);
-    this.abilityText = text(scene, 0, 0, run.abilities.ability.name.toUpperCase(), 13, '#ffffff', true).setOrigin(0.5);
-    this.abilityKey = text(scene, 0, 0, 'SPACE', 14, '#ffffff', true).setOrigin(0.5);
-    this.bossName = text(scene, 0, 92, '', 16, '#ffd0c0', true).setOrigin(0.5, 0).setVisible(false);
-    this.buildText = text(scene, 0, 0, '', 14, '#ffffff', true);
+    this.abilityText = text(scene, 0, 0, run.abilities.ability.name.toUpperCase(), 12, COLORS.text, true).setOrigin(0.5);
+    this.abilityKey = text(scene, 0, 0, 'SPACE', 13, '#ffffff', true).setOrigin(0.5);
+    this.bossName = text(scene, 0, 94, '', 15, COLORS.text, true).setOrigin(0.5, 0).setVisible(false);
+    this.buildText = text(scene, 0, 0, '', 13, COLORS.text, true);
     if (DEBUG) {
       this.debugText = text(scene, 0, 0,
-        'DEBUG  1:+Nível  2:Invencível  3:Elite  4:Boss  5:Matar todos  6:+60s', 12, '#8aff8a').setOrigin(1, 1);
+        'DEBUG  1:+Nível  2:Invencível  3:Elite  4:Boss  5:Matar todos  6:+60s', 12, COLORS.acidText).setOrigin(1, 1);
     }
     this.layout();
   }
@@ -99,38 +99,19 @@ export class HUD {
     g.clear();
 
     // XP bar (full width)
-    g.fillStyle(COLORS.outline, 1);
-    g.fillRect(0, 0, this.W, 13);
-    g.fillStyle(COLORS.xpBack, 1);
-    g.fillRect(0, 0, this.W, 10);
-    const xpW = this.W * Math.min(1, run.xp.progress);
-    if (xpW > 0) {
-      g.fillStyle(0x2a9a5a, 1);
-      g.fillRect(0, 0, xpW, 10);
-      g.fillStyle(COLORS.xp, 1);
-      g.fillRect(0, 0, xpW, 7);
-      g.fillStyle(0xffffff, 0.35);
-      g.fillRect(0, 1, xpW, 2);
-    }
+    drawBar(g, 0, 0, this.W, 6, run.xp.progress, COLORS.xp, COLORS.xpBack);
     this.levelText.setText(`${run.xp.level}`);
 
-    // HP: heart + glossy framed bar; the level sits in a round badge under the heart.
+    // HP: heart + flat bar; the level sits in a small badge under the heart.
     const hpRatio = Math.max(0, p.health.ratio);
     const hx = this.L + 38;
-    drawBar(g, hx, 26, 264, 22, hpRatio, hpRatio < 0.3 ? 0xff2a20 : COLORS.hp, COLORS.hpBack, 7);
+    drawBar(g, hx, 30, 264, 14, hpRatio, hpRatio < 0.3 ? 0xff1f3d : COLORS.hp, COLORS.hpBack);
     this.drawHeart(g, this.L + 20, 37, 22);
     this.hpText.setText(`${Math.ceil(Math.max(0, p.health.current))} / ${Math.round(p.health.max)}`);
-    g.fillStyle(COLORS.outline, 1);
-    g.fillCircle(this.L + 22, 72, 17);
-    g.fillStyle(0x1e7a48, 1);
-    g.fillCircle(this.L + 22, 72, 14);
-    g.fillStyle(COLORS.xp, 1);
-    g.fillCircle(this.L + 22, 70, 12);
-    g.fillStyle(0xffffff, 0.3);
-    g.fillEllipse(this.L + 22, 64, 14, 5);
+    drawPanel(g, this.L + 8, 58, 28, 28, { cut: 6, stroke: COLORS.acid, strokeWidth: 1.5 });
 
-    // Timer & kills on a stone plaque
-    drawSlab(g, this.W / 2 - 80, 16, 160, 70, { radius: 14, border: 3, shadow: 4, alpha: 0.9 });
+    // Timer & kills
+    drawPanel(g, this.W / 2 - 70, 18, 140, 64, { cut: 10, alpha: 0.7, stroke: null });
     this.timerText.setText(formatTime(run.director.elapsed));
     const era = run.director.endless ? `ERA ${run.run.era}  ·  ` : '';
     this.killsText.setText(`${era}☠ ${run.run.kills}`);
@@ -140,12 +121,12 @@ export class HUD {
     if (big && !big.dead) {
       const w = big.isBossLike && big.def.rank === 'boss' ? 620 : 420;
       const x = this.W / 2 - w / 2;
-      drawBar(g, x, 118, w, 16, Math.max(0, big.hpRatio), big.def.rank === 'boss' ? 0xe02a1a : 0xff7040, 0x3a0c08, 5);
+      drawBar(g, x, 120, w, 10, Math.max(0, big.hpRatio), big.def.rank === 'boss' ? COLORS.hp : COLORS.accent, COLORS.hpBack);
       if (big.def.rank === 'boss') {
         // Phase thresholds (Giganotosaurus: 66% / 33%).
-        g.lineStyle(2, 0xffffff, 0.6);
+        g.lineStyle(2, 0xfff3ea, 0.7);
         for (const t of [big.def.params.phase2At, big.def.params.phase3At]) {
-          if (t) g.lineBetween(x + w * t, 116, x + w * t, 134);
+          if (t) g.lineBetween(x + w * t, 117, x + w * t, 133);
         }
       }
       this.bossName.setVisible(true).setText(big.def.name.toUpperCase());
@@ -159,31 +140,23 @@ export class HUD {
     if (ab.ready && !this.abilityWasReady) this.abilityPulse = 1;
     this.abilityWasReady = ab.ready;
     this.abilityPulse = Math.max(0, this.abilityPulse - dt * 2);
-    // Stone ring around the ability disc.
-    g.fillStyle(0x000000, 0.35);
-    g.fillCircle(cx + 2, cy + 5, r + 9);
-    g.fillStyle(COLORS.outline, 1);
-    g.fillCircle(cx, cy, r + 9);
-    g.fillStyle(0x5a5242, 1);
-    g.fillCircle(cx, cy, r + 6);
-    g.fillStyle(COLORS.outline, 1);
-    g.fillCircle(cx, cy, r + 1);
-    g.fillStyle(ab.ready ? COLORS.accent : 0x3a372c, 1);
+    // Flat disc: fills up clockwise while on cooldown, solid lava when ready.
+    g.fillStyle(COLORS.panel, 0.85);
+    g.fillCircle(cx, cy, r + 4);
+    g.fillStyle(ab.ready ? COLORS.accent : COLORS.panelLight, 1);
     g.fillCircle(cx, cy, r);
     if (!ab.ready) {
-      g.fillStyle(COLORS.accent, 0.75);
+      g.fillStyle(COLORS.accent, 0.55);
       g.slice(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ab.readiness, false);
       g.fillPath();
     }
-    g.fillStyle(0xffffff, ab.ready ? 0.3 : 0.12);
-    g.fillEllipse(cx, cy - r * 0.55, r * 1.2, r * 0.45);
     if (this.abilityPulse > 0) {
-      g.lineStyle(4, 0xffffff, this.abilityPulse);
+      g.lineStyle(3, COLORS.accent, this.abilityPulse);
       g.strokeCircle(cx, cy, r + 6 + (1 - this.abilityPulse) * 18);
     }
-    this.abilityKey.setColor(ab.ready ? '#1a1408' : '#ffffff').setStroke(ab.ready ? '#ffe0a0' : '#000000', 3);
+    this.abilityKey.setColor(ab.ready ? '#ffffff' : COLORS.muted);
     if (!this.touchLayout) {
-      drawSlab(g, cx - 92, this.H - this.B - 40, 184, 28, { radius: 10, border: 3, shadow: 3, alpha: 0.9 });
+      drawPanel(g, cx - 80, this.H - this.B - 39, 160, 26, { cut: 6, alpha: 0.75, stroke: null });
     }
 
     this.drawUpgrades();
@@ -210,39 +183,33 @@ export class HUD {
       const row = Math.floor(i / perRow);
       const x = this.L + col * (size + gap);
       const y = baseY - row * (size + gap);
-      drawSlab(g, x, y, size, size, { radius: 8, border: 2, shadow: 3, frame: RARITY_COLORS[u.def.rarity], frameWidth: 2, alpha: 0.92 });
+      drawPanel(g, x, y, size, size, { cut: 6, stroke: RARITY_COLORS[u.def.rarity], strokeWidth: 1.5 });
       const icon = u.def.icon ?? u.def.tags[0];
       drawTagIcon(g, icon, x + size / 2, y + size / 2, size * 0.6, TAG_COLORS[icon] ?? 0xffffff);
       if (u.level > 1) {
-        this.levelTexts.push(text(this.scene, x + size - 3, y + size - 2, `${u.level}`, 12, '#ffffff', true).setOrigin(1, 1));
+        this.levelTexts.push(text(this.scene, x + size - 3, y + size - 2, `${u.level}`, 12, COLORS.text, true).setOrigin(1, 1));
       }
     });
     const rows = Math.ceil(list.length / perRow);
     const primary = this.run.upgrades.primaryTag;
     this.buildText.setPosition(this.L, baseY - rows * (size + gap) + 12);
     this.buildText.setText(primary && list.length >= 2 ? `BUILD: ${TAG_LABELS[primary] ?? primary.toUpperCase()}` : '');
-    this.buildText.setColor(primary ? hex(TAG_COLORS[primary] ?? 0xffffff) : '#ffffff');
+    this.buildText.setColor(primary ? hex(TAG_COLORS[primary] ?? 0xffffff) : COLORS.text);
   }
 
   private drawHeart(g: Phaser.GameObjects.Graphics, x: number, y: number, s: number): void {
-    const heart = (dx: number, dy: number, k: number, color: number) => {
-      const r = s * 0.28 * k;
-      g.fillStyle(color, 1);
-      g.fillCircle(x + dx - r * 0.95, y + dy - s * 0.12, r);
-      g.fillCircle(x + dx + r * 0.95, y + dy - s * 0.12, r);
-      g.fillTriangle(x + dx - r * 1.95, y + dy - s * 0.04, x + dx + r * 1.95, y + dy - s * 0.04, x + dx, y + dy + s * 0.5 * k);
-    };
-    heart(0, 2, 1.25, COLORS.outline);
-    heart(0, 0, 1, COLORS.hp);
-    g.fillStyle(0xffffff, 0.55);
-    g.fillCircle(x - s * 0.3, y - s * 0.2, s * 0.09);
+    const r = s * 0.28;
+    g.fillStyle(COLORS.hp, 1);
+    g.fillCircle(x - r * 0.95, y - s * 0.12, r);
+    g.fillCircle(x + r * 0.95, y - s * 0.12, r);
+    g.fillTriangle(x - r * 1.95, y - s * 0.04, x + r * 1.95, y - s * 0.04, x, y + s * 0.5);
   }
 
   /** Big announcement across the top of the screen. */
-  banner(heading: string, sub?: string, color = 0xffc070): void {
+  banner(heading: string, sub?: string, color = COLORS.accent): void {
     const s = this.scene;
-    const t = title(s, this.W / 2, 190, heading, 44, color).setOrigin(0.5).setAlpha(0).setScale(1.4);
-    const st = sub ? text(s, this.W / 2, 234, sub, 18, '#ffffff', true).setOrigin(0.5).setAlpha(0) : null;
+    const t = title(s, this.W / 2, 190, heading, 40, color).setOrigin(0.5).setAlpha(0).setScale(1.4);
+    const st = sub ? text(s, this.W / 2, 234, sub, 17, COLORS.text, true).setOrigin(0.5).setAlpha(0) : null;
     s.tweens.add({ targets: t, alpha: 1, scale: 1, duration: 260, ease: 'Back.easeOut' });
     if (st) s.tweens.add({ targets: st, alpha: 1, duration: 300, delay: 120 });
     s.time.delayedCall(2600, () => {

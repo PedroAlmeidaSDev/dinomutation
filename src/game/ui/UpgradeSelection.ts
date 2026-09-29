@@ -3,7 +3,7 @@ import { TAG_COLORS, TAG_LABELS } from '../../data/upgrades';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { designOffset, fitShade } from './layout';
 import type { UpgradeChoice } from '../upgrades/UpgradeSystem';
-import { COLORS, FONT, FONT_BOLD, RARITY_COLORS, RARITY_LABELS, button, drawSlab, drawTagIcon, hex, shade, text, title } from './theme';
+import { COLORS, FONT, RARITY_COLORS, RARITY_LABELS, WEIGHT, button, drawPanel, drawTagIcon, hex, text, title } from './theme';
 
 export interface SelectionOptions {
   title: string;
@@ -31,9 +31,9 @@ export class UpgradeSelection {
     this.readyAt = scene.time.now + 280;
     const objs: Phaser.GameObjects.GameObject[] = [];
 
-    this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.72).setOrigin(0).setInteractive();
+    this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.8).setOrigin(0).setInteractive();
     objs.push(this.shade);
-    const heading = title(scene, GAME_WIDTH / 2, 70, opts.title, 46).setOrigin(0.5);
+    const heading = title(scene, GAME_WIDTH / 2, 70, opts.title, 40).setOrigin(0.5);
     objs.push(heading, text(scene, GAME_WIDTH / 2, 116, opts.subtitle, 17, COLORS.muted).setOrigin(0.5));
 
     const n = opts.choices.length;
@@ -44,7 +44,7 @@ export class UpgradeSelection {
 
     if (opts.rerolls > 0) {
       objs.push(button(scene, GAME_WIDTH / 2, GAME_HEIGHT - 60, `REROLAR (R) · ${opts.rerolls}`, () => this.reroll(), {
-        width: 260, height: 46, fontSize: 18, color: 0x7a8a6a,
+        width: 260, height: 46, fontSize: 17, ghost: true,
       }));
     }
 
@@ -80,64 +80,45 @@ export class UpgradeSelection {
     const bg = s.add.graphics();
     const drawBg = (hover: boolean) => {
       bg.clear();
-      if (def.rarity !== 'common' || hover) {
-        bg.fillStyle(rc, hover ? 0.4 : 0.22);
-        bg.fillRoundedRect(-CARD_W / 2 - 10, -CARD_H / 2 - 10, CARD_W + 20, CARD_H + 20, 24);
-      }
-      drawSlab(bg, -CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, {
-        fill: hover ? COLORS.panelLight : COLORS.panel, radius: 18, border: 5, speckle: true, shadow: 8, frame: rc, frameWidth: hover ? 5 : 4,
+      drawPanel(bg, -CARD_W / 2, -CARD_H / 2, CARD_W, CARD_H, {
+        cut: 16, fill: hover ? COLORS.panelLight : COLORS.panel, alpha: 0.96,
+        stroke: hover ? rc : COLORS.border, strokeWidth: hover ? 2 : 1, accent: rc,
       });
-      bg.fillStyle(rc, 0.2);
-      bg.fillRoundedRect(-CARD_W / 2 + 9, -CARD_H / 2 + 9, CARD_W - 18, 112, { tl: 12, tr: 12, bl: 0, br: 0 });
     };
     drawBg(false);
 
     const icon = s.add.graphics();
-    // Stone medallion: outline, rim, dark face, coloured ring.
     const my = -CARD_H / 2 + 64;
-    icon.fillStyle(0x000000, 0.35);
-    icon.fillCircle(2, my + 5, 46);
-    icon.fillStyle(COLORS.outline, 1);
-    icon.fillCircle(0, my, 46);
-    icon.fillStyle(0x5a5242, 1);
-    icon.fillCircle(0, my, 42);
-    icon.fillStyle(0x17140f, 1);
-    icon.fillCircle(0, my, 35);
-    icon.lineStyle(3, iconColor, 0.9);
-    icon.strokeCircle(0, my, 35);
-    icon.fillStyle(0xffffff, 0.15);
-    icon.slice(0, my, 42, Math.PI * 1.1, Math.PI * 1.9, false);
-    icon.fillPath();
+    icon.fillStyle(COLORS.bg, 1);
+    icon.fillCircle(0, my, 38);
+    icon.lineStyle(2, iconColor, 0.8);
+    icon.strokeCircle(0, my, 38);
     drawTagIcon(icon, iconTag, 0, my, 44, iconColor);
 
     const keyBadge = s.add.graphics();
-    drawSlab(keyBadge, -CARD_W / 2 + 12, -CARD_H / 2 + 12, 34, 34, { fill: COLORS.panelLight, radius: 9, border: 3, shadow: 0, lip: 3 });
-    const keyHint = text(s, -CARD_W / 2 + 29, -CARD_H / 2 + 27, `${index + 1}`, 18, '#ffffff', true).setOrigin(0.5);
+    drawPanel(keyBadge, -CARD_W / 2 + 14, -CARD_H / 2 + 14, 28, 28, { cut: 6, fill: COLORS.bg, stroke: COLORS.border });
+    const keyHint = text(s, -CARD_W / 2 + 28, -CARD_H / 2 + 28, `${index + 1}`, 15, COLORS.muted, true).setOrigin(0.5);
     const levelLabel = choice.nextLevel === 1
       ? 'NOVO'
       : `NV ${choice.nextLevel - 1} → ${choice.nextLevel}`;
-    const lvl = text(s, CARD_W / 2 - 16, -CARD_H / 2 + 16, def.consumable ? '' : levelLabel, 14, choice.nextLevel === 1 ? '#8aff9a' : '#ffe08a', true).setOrigin(1, 0);
+    const lvl = text(s, CARD_W / 2 - 16, -CARD_H / 2 + 18, def.consumable ? '' : levelLabel, 13, choice.nextLevel === 1 ? COLORS.acidText : COLORS.accentText, true).setOrigin(1, 0);
 
-    const name = s.add.text(0, -CARD_H / 2 + 130, def.name.toUpperCase(), {
-      fontFamily: FONT_BOLD, fontSize: '23px', color: '#ffffff', stroke: '#1a0e04', strokeThickness: 6,
-      shadow: { offsetX: 0, offsetY: 2, color: '#000000', blur: 0, stroke: true, fill: true },
+    const name = s.add.text(0, -CARD_H / 2 + 128, def.name.toUpperCase(), {
+      fontFamily: FONT, fontStyle: WEIGHT.bold, fontSize: '22px', color: COLORS.text, letterSpacing: 1,
       align: 'center', wordWrap: { width: CARD_W - 30 },
     }).setOrigin(0.5, 0);
-    // Rarity ribbon: a small slab in the rarity colour.
     const rarityY = name.y + name.height + 4;
-    const rarity = text(s, 0, rarityY + 12, RARITY_LABELS[def.rarity], 13, '#ffffff', true).setOrigin(0.5);
-    const ribbon = s.add.graphics();
-    drawSlab(ribbon, -rarity.width / 2 - 16, rarityY, rarity.width + 32, 26, { fill: shade(rc, -25), radius: 13, border: 3, shadow: 3 });
-    const desc = s.add.text(0, rarityY + 38, def.description, {
-      fontFamily: FONT, fontStyle: 'bold', fontSize: '16px', color: COLORS.text, align: 'center',
+    const rarity = text(s, 0, rarityY + 10, RARITY_LABELS[def.rarity], 12, hex(rc), true).setOrigin(0.5).setLetterSpacing(3);
+    const desc = s.add.text(0, rarityY + 34, def.description, {
+      fontFamily: FONT, fontStyle: WEIGHT.regular, fontSize: '16px', color: COLORS.muted, align: 'center',
       wordWrap: { width: CARD_W - 36 }, lineSpacing: 4,
     }).setOrigin(0.5, 0);
 
     const tagStr = def.tags.map((t) => TAG_LABELS[t] ?? t.toUpperCase()).join(' • ');
     const tags = text(s, 0, CARD_H / 2 - 58, tagStr, 13, hex(iconColor), true).setOrigin(0.5);
-    const syn = text(s, 0, CARD_H / 2 - 30, synergy.length ? `✦ SINERGIA: ${synergy.map((t) => TAG_LABELS[t] ?? t).join(', ')}` : '', 12, '#9affc0', true).setOrigin(0.5);
+    const syn = text(s, 0, CARD_H / 2 - 30, synergy.length ? `✦ SINERGIA: ${synergy.map((t) => TAG_LABELS[t] ?? t).join(', ')}` : '', 12, COLORS.acidText, true).setOrigin(0.5);
 
-    const card = s.add.container(x, y, [bg, icon, keyBadge, keyHint, lvl, name, ribbon, rarity, desc, tags, syn]);
+    const card = s.add.container(x, y, [bg, icon, keyBadge, keyHint, lvl, name, rarity, desc, tags, syn]);
     card.setSize(CARD_W, CARD_H).setInteractive({ useHandCursor: true });
     card.setScale(0.6).setAlpha(0);
     s.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 260, delay: 60 + index * 70, ease: 'Back.easeOut' });

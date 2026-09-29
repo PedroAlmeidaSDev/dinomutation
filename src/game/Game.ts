@@ -14,7 +14,7 @@ export function createGame(parent: string): Phaser.Game {
     parent,
     width: GAME_WIDTH,
     height: GAME_HEIGHT,
-    backgroundColor: '#12150e',
+    backgroundColor: '#0f0a09',
     // EXPAND fills the whole screen (no letterbox bars): the 1280×720 base is
     // always visible and the game area grows on wider/taller screens.
     scale: {

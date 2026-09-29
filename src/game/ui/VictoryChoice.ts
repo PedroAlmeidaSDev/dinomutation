@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { ENDLESS_CONFIG } from '../../data/endless';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { designOffset, fitShade } from './layout';
-import { COLORS, FONT, button, drawSlab, text, title as titleText } from './theme';
+import { COLORS, FONT, WEIGHT, button, drawPanel, text, title as titleText } from './theme';
 
 /**
  * Shown when the story boss falls: end the run as a victory, or continue into the
@@ -18,24 +18,25 @@ export class VictoryChoice {
   constructor(private readonly scene: Phaser.Scene, private readonly onContinue: () => void, private readonly onEnd: () => void) {
     this.readyAt = scene.time.now + 500;
     const cx = GAME_WIDTH / 2;
-    const shade = this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.78).setOrigin(0).setInteractive();
-    const title = titleText(scene, cx, 150, 'VITÓRIA!', 80, 0xffc02a).setOrigin(0.5);
-    const sub = text(scene, cx, 222, 'O Giganotosaurus caiu. A vitória já está registrada.', 20, '#e8dcc0', true).setOrigin(0.5);
+    const shade = this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.82).setOrigin(0).setInteractive();
+    const title = titleText(scene, cx, 150, 'VITÓRIA!', 72, COLORS.acid).setOrigin(0.5);
+    const sub = text(scene, cx, 222, 'O Giganotosaurus caiu. A vitória já está registrada.', 19, COLORS.muted).setOrigin(0.5);
 
+    // The endless mode keeps its purple identity (Era mutations, mutagen).
     const panel = scene.add.graphics();
-    drawSlab(panel, cx - 370, 266, 740, 180, { speckle: true, frame: 0xd070ff, frameWidth: 3 });
-    const endlessTitle = text(scene, cx, 292, 'ERA SEM FIM', 26, '#e0a0ff', true).setOrigin(0.5, 0);
+    drawPanel(panel, cx - 370, 266, 740, 180, { cut: 16, stroke: 0xc070ff, strokeAlpha: 0.7, accent: 0xc070ff });
+    const endlessTitle = text(scene, cx, 292, 'ERA SEM FIM', 24, '#e0a0ff', true).setOrigin(0.5, 0).setLetterSpacing(3);
     const minutes = ENDLESS_CONFIG.eraLength / 60;
     const desc = scene.add.text(cx, 334, [
       `Eras de ${minutes} minutos que terminam com um Giganotosaurus cada vez mais forte.`,
       'Inimigos crescem a cada Era; da Era 3 em diante, mutações mudam as regras.',
       'Você ganha uma mutação LENDÁRIA agora e a cada chefe derrotado.',
     ].join('\n'), {
-      fontFamily: FONT, fontStyle: 'bold', fontSize: '17px', color: COLORS.text, align: 'center', lineSpacing: 6,
+      fontFamily: FONT, fontStyle: WEIGHT.regular, fontSize: '17px', color: COLORS.text, align: 'center', lineSpacing: 6,
     }).setOrigin(0.5, 0);
 
-    const cont = button(scene, cx - 170, 510, 'CONTINUAR (ENTER)', () => this.choose(true), { width: 310, height: 62, fontSize: 20, color: 0xb070e0 });
-    const end = button(scene, cx + 170, 510, 'ENCERRAR (ESC)', () => this.choose(false), { width: 280, height: 62, fontSize: 20, color: 0x7a8a6a });
+    const cont = button(scene, cx - 170, 510, 'CONTINUAR (ENTER)', () => this.choose(true), { width: 310, height: 58, fontSize: 19, color: 0xc070ff });
+    const end = button(scene, cx + 170, 510, 'ENCERRAR (ESC)', () => this.choose(false), { width: 280, height: 58, fontSize: 19, ghost: true });
 
     this.root = scene.add.container(0, 0, [shade, title, sub, panel, endlessTitle, desc, cont, end]).setDepth(1100).setAlpha(0);
     this.layout();

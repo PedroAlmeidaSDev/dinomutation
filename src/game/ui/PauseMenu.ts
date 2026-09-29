@@ -6,7 +6,7 @@ import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { Run } from '../core/Run';
 import type { PickupKind } from '../systems/PickupSystem';
 import { designOffset, fitShade, safeInsets } from './layout';
-import { COLORS, RARITY_COLORS, button, drawSlab, fullscreenButton, hex, text, title } from './theme';
+import { COLORS, RARITY_COLORS, button, drawPanel, fullscreenButton, hex, text, title } from './theme';
 
 const PANEL_Y = 110;
 const PANEL_H = 480;
@@ -27,16 +27,16 @@ export class PauseMenu {
 
   constructor(private readonly scene: Phaser.Scene, run: Run, onResume: () => void, onQuit: () => void) {
     const objs: Phaser.GameObjects.GameObject[] = [];
-    this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x05070a, 0.8).setOrigin(0).setInteractive();
+    this.shade = scene.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.85).setOrigin(0).setInteractive();
     objs.push(this.shade);
-    objs.push(title(scene, GAME_WIDTH / 2, 58, 'PAUSADO', 50).setOrigin(0.5));
+    objs.push(title(scene, GAME_WIDTH / 2, 58, 'PAUSADO', 44).setOrigin(0.5));
 
     const panels: [number, number][] = [[30, 340], [390, 480], [890, 360]];
     const panel = scene.add.graphics();
     for (const [x, w] of panels) {
-      drawSlab(panel, x, PANEL_Y, w, PANEL_H, { speckle: true, alpha: 0.97 });
-      panel.fillStyle(COLORS.outline, 0.6);
-      panel.fillRect(x + 16, PANEL_Y + 42, w - 32, 2);
+      drawPanel(panel, x, PANEL_Y, w, PANEL_H, { cut: 14 });
+      panel.fillStyle(COLORS.border, 1);
+      panel.fillRect(x + 16, PANEL_Y + 42, w - 32, 1);
     }
     objs.push(panel);
 
@@ -59,7 +59,7 @@ export class PauseMenu {
     ];
     rows.forEach(([k, fmt], i) => {
       objs.push(text(scene, 52, 164 + i * 32, STAT_LABELS[k] ?? k, 16, COLORS.muted));
-      objs.push(text(scene, 350, 164 + i * 32, fmt(s.get(k)), 16, '#ffffff', true).setOrigin(1, 0));
+      objs.push(text(scene, 350, 164 + i * 32, fmt(s.get(k)), 16, COLORS.text, true).setOrigin(1, 0));
     });
 
     // Mutations
@@ -78,7 +78,7 @@ export class PauseMenu {
     objs.push(...this.minimap(run, 910, 160));
 
     objs.push(button(scene, GAME_WIDTH / 2 - 150, GAME_HEIGHT - 70, 'CONTINUAR', onResume, { width: 260 }));
-    objs.push(button(scene, GAME_WIDTH / 2 + 150, GAME_HEIGHT - 70, 'MENU', onQuit, { width: 260, color: 0x9a5a4a }));
+    objs.push(button(scene, GAME_WIDTH / 2 + 150, GAME_HEIGHT - 70, 'MENU', onQuit, { width: 260, ghost: true }));
     this.fs = fullscreenButton(scene, 0, 0);
     if (this.fs) objs.push(this.fs);
     this.root = scene.add.container(0, 0, objs).setDepth(1100);
@@ -105,9 +105,9 @@ export class PauseMenu {
 
     // Ground and border cliffs
     const T = BALANCE.world.wallThickness * k;
-    g.fillStyle(0x151a10, 1);
+    g.fillStyle(COLORS.bg, 1);
     g.fillRect(x, y, W * k, H * k);
-    g.fillStyle(0x2c3522, 1);
+    g.fillStyle(COLORS.panelLight, 1);
     g.fillRect(x + T, y + T, W * k - 2 * T, H * k - 2 * T);
 
     for (const o of ARENA_OBSTACLES) {
@@ -163,7 +163,7 @@ export class PauseMenu {
     g.lineStyle(2, 0xffffff, 0.9);
     g.strokeCircle(px, py, 9);
 
-    g.lineStyle(3, COLORS.outline, 1);
+    g.lineStyle(1, COLORS.border, 1);
     g.strokeRect(x, y, W * k, H * k);
 
     // Legend
