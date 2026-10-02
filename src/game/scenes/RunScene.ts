@@ -5,6 +5,7 @@ import type { DifficultyId } from '../../data/difficulty';
 import type { DinoId } from '../../data/dinosaurs';
 import { DEBUG } from '../config';
 import { Run } from '../core/Run';
+import { recordClear } from '../core/Save';
 import { prefersTouch } from '../ui/TouchControls';
 import type { HUDScene } from './HUDScene';
 
@@ -68,6 +69,9 @@ export class RunScene extends Phaser.Scene {
     this.run.bus.on('banner', (b) => this.hud?.hud.banner(b.text, b.sub, b.color));
     this.run.bus.on('onLevelUp', () => this.run.fx.levelUp(this.run.player.x, this.run.player.y));
     this.run.bus.on('storyBossDefeated', () => {
+      // Save the win now: the player may go endless and quit without seeing the result screen.
+      const state = this.run.run;
+      state.firstClear = recordClear(state.dinosaur, state.difficulty);
       this.victoryPending = true;
       // Let the boss explosion play before asking.
       this.time.delayedCall(1600, () => this.offerEndless());
@@ -122,9 +126,11 @@ export class RunScene extends Phaser.Scene {
     else this.hud.hidePause();
   }
 
+  /** After a win (quitting the endless mode) the result screen still records the run's rewards. */
   private quitToMenu(): void {
     this.scene.stop('HUD');
-    this.scene.start('Menu');
+    if (this.run.run.victory) this.scene.start('Victory', { state: this.run.run });
+    else this.scene.start('Menu');
   }
 
   update(_time: number, deltaMs: number): void {
