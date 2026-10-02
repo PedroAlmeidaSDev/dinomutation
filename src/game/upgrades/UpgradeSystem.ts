@@ -8,11 +8,20 @@ import { weightedPick } from '../../utils/math';
 import { EFFECT_HANDLERS, type EffectRuntime } from './UpgradeEffects';
 import type { EffectDefinition, UpgradeDefinition } from './UpgradeTypes';
 import type { MetaBonus } from '../../data/meta';
+import type { StatKey, StatMod } from '../components/StatsComponent';
+import type { StatusId } from '../statuses/StatusDefinitions';
+
+/** One "before → after" line on an upgrade card. */
+export type UpgradePreview =
+  | { kind: 'stat'; stat: StatKey; before: number; after: number }
+  | { kind: 'procChance' | 'procStacks'; status: StatusId; before: number; after: number };
 
 export interface UpgradeChoice {
   def: UpgradeDefinition;
   /** Level the upgrade will have after picking it. */
   nextLevel: number;
+  /** What changes if this card is picked (stats and on-hit status procs). */
+  preview: UpgradePreview[];
 }
 
 export interface RollOptions {
@@ -59,13 +68,48 @@ export class UpgradeSystem {
   power(id: string): number {
     const meta = this.meta.get(id);
     if (meta) return meta.level;
-    const lvl = this.level(id);
+    return this.powerAt(UPGRADE_BY_ID[id], this.level(id));
+  }
+
+  private powerAt(def: UpgradeDefinition, lvl: number): number {
     if (lvl === 0) return 0;
-    const def = UPGRADE_BY_ID[id];
-    if (this.ctx.player.flags.has('apex') && this.primaryTag && id !== 'evolucao_apex' && def.tags.includes(this.primaryTag)) {
+    if (this.ctx.player.flags.has('apex') && this.primaryTag && def.id !== 'evolucao_apex' && def.tags.includes(this.primaryTag)) {
       return lvl * BALANCE.upgrades.apexMultiplier;
     }
     return lvl;
+  }
+
+  /** "Before → after" for the card's stat modifiers and status procs, using the current build. */
+  preview(def: UpgradeDefinition): UpgradePreview[] {
+    const lvl = this.level(def.id);
+    // Same power rules as rebuildStats / rebuildProcs (consumables scale by plain level).
+    const powerOf = (l: number) => (def.consumable ? l : this.powerAt(def, l));
+    const before = powerOf(lvl);
+    const after = powerOf(lvl + 1);
+    const rows: UpgradePreview[] = [];
+
+    const stats = this.ctx.player.stats;
+    const overrides: Record<string, StatMod> = {};
+    const changed: StatKey[] = [];
+    def.effects.forEach((eff, i) => {
+      if (eff.type !== 'stat') return;
+      overrides[`ups:${def.id}:${i}`] = { stat: eff.stat, mode: eff.mode, value: eff.value * after };
+      if (!changed.includes(eff.stat)) changed.push(eff.stat);
+    });
+    // Only upgrade/meta modifiers: momentary buffs (Frenesi, Rugido...) would skew the numbers.
+    const keep = (id: string) => id.startsWith('ups:');
+    for (const stat of changed) {
+      rows.push({ kind: 'stat', stat, before: stats.preview(stat, {}, keep), after: stats.preview(stat, overrides, keep) });
+    }
+
+    for (const eff of def.effects) {
+      if (eff.type !== 'statusOnHit') continue;
+      const chance = (p: number) => Math.min(1, eff.chance * p);
+      const stacks = (p: number) => (p === 0 ? 0 : Math.max(1, Math.round(eff.stacks * p)));
+      if (chance(before) !== chance(after)) rows.push({ kind: 'procChance', status: eff.status, before: chance(before), after: chance(after) });
+      if (stacks(before) !== stacks(after)) rows.push({ kind: 'procStacks', status: eff.status, before: stacks(before), after: stacks(after) });
+    }
+    return rows;
   }
 
   /** Tag → weight, from owned upgrades (by level) and the dinosaur's innate tags. */
@@ -274,7 +318,7 @@ export class UpgradeSystem {
       if (picks.length >= count) break;
       picks.push(c);
     }
-    return picks.map((def) => ({ def, nextLevel: this.level(def.id) + 1 }));
+    return picks.map((def) => ({ def, nextLevel: this.level(def.id) + 1, preview: this.preview(def) }));
   }
 
   destroy(): void {
