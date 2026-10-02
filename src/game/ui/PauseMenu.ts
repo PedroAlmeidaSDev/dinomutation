@@ -1,11 +1,12 @@
 import Phaser from 'phaser';
 import { ARENA_OBSTACLES, type ObstacleType } from '../../data/arena';
 import { BALANCE } from '../../data/balance';
-import { STAT_LABELS, type StatKey } from '../components/StatsComponent';
+import type { StatKey } from '../components/StatsComponent';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { Run } from '../core/Run';
 import type { PickupKind } from '../systems/PickupSystem';
 import { designOffset, fitShade, safeInsets } from './layout';
+import { formatStat, statLabel } from './statFormat';
 import { COLORS, RARITY_COLORS, button, drawPanel, fullscreenButton, hex, text, title } from './theme';
 
 const PANEL_Y = 110;
@@ -43,23 +44,13 @@ export class PauseMenu {
     // Stats
     objs.push(text(scene, 48, 124, `${run.player.def.name} — ATRIBUTOS`, 18, COLORS.accentText, true));
     const s = run.player.stats;
-    const rows: [StatKey, (v: number) => string][] = [
-      ['maxHealth', (v) => `${Math.round(v)}`],
-      ['damage', (v) => v.toFixed(1)],
-      ['attackSpeed', (v) => `${v.toFixed(2)}/s`],
-      ['moveSpeed', (v) => `${Math.round(v)}`],
-      ['armor', (v) => `${Math.round(v)}`],
-      ['critChance', (v) => `${Math.round(v * 100)}%`],
-      ['critDamage', (v) => `×${v.toFixed(2)}`],
-      ['attackRange', (v) => `${Math.round(v)}`],
-      ['size', (v) => `${Math.round(v * 100)}%`],
-      ['regen', (v) => `${v.toFixed(1)}/s`],
-      ['cooldownReduction', (v) => `${Math.round(Math.min(0.6, v) * 100)}%`],
-      ['repeatChance', (v) => `${Math.round(v * 100)}%`],
+    const rows: StatKey[] = [
+      'maxHealth', 'damage', 'attackSpeed', 'moveSpeed', 'armor', 'critChance',
+      'critDamage', 'attackRange', 'size', 'regen', 'cooldownReduction', 'repeatChance',
     ];
-    rows.forEach(([k, fmt], i) => {
-      objs.push(text(scene, 52, 164 + i * 32, STAT_LABELS[k] ?? k, 16, COLORS.muted));
-      objs.push(text(scene, 350, 164 + i * 32, fmt(s.get(k)), 16, COLORS.text, true).setOrigin(1, 0));
+    rows.forEach((k, i) => {
+      objs.push(text(scene, 52, 164 + i * 32, statLabel(k), 16, COLORS.muted));
+      objs.push(text(scene, 350, 164 + i * 32, formatStat(k, s.get(k)), 16, COLORS.text, true).setOrigin(1, 0));
     });
 
     // Mutations

@@ -70,12 +70,23 @@ export const STAT_LABELS: Partial<Record<StatKey, string>> = {
   regen: 'Regeneração',
   damageReduction: 'Red. Dano',
   repeatChance: 'Repetir Ataque',
+  attackArc: 'Arco',
+  pickupRange: 'Coleta',
+  xpGain: 'Ganho de DNA',
+  bleedDamage: 'Dano Sangram.',
+  poisonDamage: 'Dano Veneno',
+  knockback: 'Empurrão',
+  extraTargets: 'Alvos Extras',
+  summonDamage: 'Dano Invocação',
 };
 
-interface Modifier {
+export interface StatMod {
   stat: StatKey;
   mode: ModMode;
   value: number;
+}
+
+interface Modifier extends StatMod {
   /** Remaining seconds, or Infinity for permanent modifiers. */
   remaining: number;
 }
@@ -102,9 +113,27 @@ export class StatsComponent {
   get(stat: StatKey): number {
     const cached = this.cache.get(stat);
     if (cached !== undefined) return cached;
+    const v = this.compute(stat, this.mods.values());
+    this.cache.set(stat, v);
+    return v;
+  }
+
+  /**
+   * Value of `stat` with `overrides` (id → modifier) applied, without changing anything.
+   * Only permanent modifiers whose id passes `keep` count, so momentary buffs can be left out
+   * (the upgrade cards use this to show "before → after").
+   */
+  preview(stat: StatKey, overrides: Record<string, StatMod>, keep: (id: string) => boolean = () => true): number {
+    const mods: StatMod[] = [];
+    for (const [id, m] of this.mods) if (m.remaining === Infinity && keep(id) && !(id in overrides)) mods.push(m);
+    mods.push(...Object.values(overrides));
+    return this.compute(stat, mods);
+  }
+
+  private compute(stat: StatKey, mods: Iterable<StatMod>): number {
     let add = 0;
     let mult = 0;
-    for (const m of this.mods.values()) {
+    for (const m of mods) {
       if (m.stat !== stat) continue;
       if (m.mode === 'add') add += m.value;
       else mult += m.value;
@@ -112,9 +141,7 @@ export class StatsComponent {
     const cap = this.softCaps[stat];
     if (cap && mult > cap.above) mult = cap.above + (mult - cap.above) * cap.rate;
     const base = this.base[stat] ?? STAT_DEFAULTS[stat] ?? 0;
-    const v = (base + add) * (1 + mult);
-    this.cache.set(stat, v);
-    return v;
+    return (base + add) * (1 + mult);
   }
 
   getBase(stat: StatKey): number {

@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { TAG_COLORS, TAG_LABELS } from '../../data/upgrades';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { designOffset, fitShade } from './layout';
+import { formatPreview } from './statFormat';
 import type { UpgradeChoice } from '../upgrades/UpgradeSystem';
 import { COLORS, FONT, RARITY_COLORS, RARITY_LABELS, WEIGHT, button, drawPanel, drawTagIcon, hex, text, title } from './theme';
 
@@ -17,7 +18,7 @@ export interface SelectionOptions {
 }
 
 const CARD_W = 300;
-const CARD_H = 390;
+const CARD_H = 450;
 
 /** Level-up screen: three mutation cards (click or keys 1-3), optional reroll (R). */
 export class UpgradeSelection {
@@ -114,11 +115,29 @@ export class UpgradeSelection {
       wordWrap: { width: CARD_W - 36 }, lineSpacing: 4,
     }).setOrigin(0.5, 0);
 
+    // What the pick changes: "Crítico   5% → 11%" (red when a stat goes down).
+    const statObjs: Phaser.GameObjects.GameObject[] = [];
+    let rowY = desc.y + desc.height + 16;
+    if (choice.preview.length > 0) {
+      const sep = s.add.graphics();
+      sep.lineStyle(1, COLORS.border, 1);
+      sep.lineBetween(-CARD_W / 2 + 22, rowY - 8, CARD_W / 2 - 22, rowY - 8);
+      statObjs.push(sep);
+    }
+    for (const p of choice.preview) {
+      const row = formatPreview(p);
+      const right = CARD_W / 2 - 22;
+      const after = text(s, right, rowY, row.after, 14, p.after < p.before ? COLORS.danger : COLORS.acidText, true).setOrigin(1, 0);
+      const before = text(s, right - after.width - 6, rowY, `${row.before} →`, 14, COLORS.dim, true).setOrigin(1, 0);
+      statObjs.push(text(s, -CARD_W / 2 + 22, rowY, row.label, 14, COLORS.muted), before, after);
+      rowY += 21;
+    }
+
     const tagStr = def.tags.map((t) => TAG_LABELS[t] ?? t.toUpperCase()).join(' • ');
     const tags = text(s, 0, CARD_H / 2 - 58, tagStr, 13, hex(iconColor), true).setOrigin(0.5);
     const syn = text(s, 0, CARD_H / 2 - 30, synergy.length ? `✦ SINERGIA: ${synergy.map((t) => TAG_LABELS[t] ?? t).join(', ')}` : '', 12, COLORS.acidText, true).setOrigin(0.5);
 
-    const card = s.add.container(x, y, [bg, icon, keyBadge, keyHint, lvl, name, rarity, desc, tags, syn]);
+    const card = s.add.container(x, y, [bg, icon, keyBadge, keyHint, lvl, name, rarity, desc, ...statObjs, tags, syn]);
     card.setSize(CARD_W, CARD_H).setInteractive({ useHandCursor: true });
     card.setScale(0.6).setAlpha(0);
     s.tweens.add({ targets: card, scale: 1, alpha: 1, duration: 260, delay: 60 + index * 70, ease: 'Back.easeOut' });
