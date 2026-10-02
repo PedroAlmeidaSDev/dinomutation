@@ -3,7 +3,7 @@ import { DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import {
   fossilsForRun, loadoutFor, masteryLevel, masteryXpForRun, unlocksAtMastery, type MetaBonus, type ShopItemDef,
 } from '../../data/meta';
-import type { RunState } from './RunState';
+import type { FirstClear, RunState } from './RunState';
 
 const KEY = 'dino-roguelite-save-v1';
 
@@ -98,32 +98,46 @@ export function recordRun(state: RunState, victory: boolean): { save: SaveData; 
     s.bestEraByDino[dino] = Math.max(s.bestEraByDino[dino] ?? 0, era);
   }
 
-  const diff = DIFFICULTY_BY_ID[state.difficulty];
-  let fossils = fossilsForRun({ ...state, fossilMult: diff.fossilMult });
-  let firstWinBonus = 0;
-  let unlockedDifficulty: string | undefined;
-  const idx = difficultyIndex(state.difficulty);
-  if (victory && idx > clearedIndex(s, dino)) {
-    s.cleared[dino] = idx;
-    firstWinBonus = diff.firstWinBonus;
-    fossils += firstWinBonus;
-    const next = DIFFICULTIES[idx + 1];
-    if (next) unlockedDifficulty = next.name;
-  }
+  const runFossils = fossilsForRun({ ...state, fossilMult: DIFFICULTY_BY_ID[state.difficulty].fossilMult });
+  // The clear is normally saved when the boss fell (recordClear); this covers callers that didn't.
+  const clear = state.firstClear ?? (victory ? applyClear(s, dino, state.difficulty) : undefined);
+  const firstWinBonus = clear?.firstWinBonus ?? 0;
+  const fossils = runFossils + firstWinBonus;
   const masteryXp = masteryXpForRun(state);
   const xpBefore = s.mastery[dino] ?? 0;
   const levelBefore = masteryLevel(xpBefore);
-  s.fossils += fossils;
+  s.fossils += runFossils;
   s.mastery[dino] = xpBefore + masteryXp;
   const levelAfter = masteryLevel(s.mastery[dino]!);
   const unlocks: string[] = [];
   for (let l = levelBefore + 1; l <= levelAfter; l++) unlocks.push(...unlocksAtMastery(dino, l));
 
   writeSave(s);
-  return { save: s, rewards: { fossils, firstWinBonus, unlockedDifficulty, masteryXp, levelBefore, levelAfter, unlocks } };
+  return { save: s, rewards: { fossils, firstWinBonus, unlockedDifficulty: clear?.unlockedDifficulty, masteryXp, levelBefore, levelAfter, unlocks } };
 }
 
 // ─────────────────────────── difficulty ───────────────────────────
+
+/**
+ * Saves a story win right when the boss falls: unlocks the next difficulty and pays the
+ * first-win bonus. Quitting mid-endless (or closing the tab) skips the result screen, so
+ * this can't wait for recordRun. Returns undefined if the difficulty was already beaten.
+ */
+export function recordClear(dino: DinoId, difficulty: DifficultyId): FirstClear | undefined {
+  const s = loadSave();
+  const clear = applyClear(s, dino, difficulty);
+  if (clear) writeSave(s);
+  return clear;
+}
+
+function applyClear(s: SaveData, dino: DinoId, difficulty: DifficultyId): FirstClear | undefined {
+  const idx = difficultyIndex(difficulty);
+  if (idx <= clearedIndex(s, dino)) return undefined;
+  s.cleared[dino] = idx;
+  const firstWinBonus = DIFFICULTY_BY_ID[difficulty].firstWinBonus;
+  s.fossils += firstWinBonus;
+  return { firstWinBonus, unlockedDifficulty: DIFFICULTIES[idx + 1]?.name };
+}
 
 /** Index of the highest difficulty beaten with `dino` (-1 = none). */
 export function clearedIndex(s: SaveData, dino: DinoId): number {

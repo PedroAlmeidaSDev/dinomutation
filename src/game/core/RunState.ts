@@ -8,6 +8,13 @@ export interface RunUpgradeRecord {
   level: number;
 }
 
+/** First win on a difficulty with a dinosaur (see Save.recordClear). */
+export interface FirstClear {
+  firstWinBonus: number;
+  /** Name of the difficulty unlocked by the win, if any. */
+  unlockedDifficulty?: string;
+}
+
 /** Everything the result screens need to know about a run. */
 export interface RunState {
   dinosaur: DinoId;
@@ -24,6 +31,8 @@ export interface RunState {
   eliteKilled: boolean;
   bossKilled: boolean;
   victory: boolean;
+  /** Set (and already saved) when the story boss falls on a difficulty not beaten before. */
+  firstClear?: FirstClear;
   primaryTag?: string;
   /** Continued into the endless mode after beating the Giganotosaurus. */
   endless: boolean;
