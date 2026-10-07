@@ -1,6 +1,6 @@
 # Backend fase 2 — contas e save na nuvem
 
-> Data: 05/10/2026 · Branch: `feat/backend-fase2` · Status: aprovado no brainstorming, aguardando revisão do spec
+> Data: 05/10/2026 · Branch: `feat/backend-fase2` · Status: aprovado (revisado em 07/10/2026: Spring Boot 4.1.1, limites da importação e detalhes de tipos)
 
 ## Objetivo
 
@@ -43,10 +43,10 @@ dinomutation/
 
 ### Stack do servidor
 
-- Java 21 (LTS), Spring Boot 3 (última estável), Maven com Maven Wrapper.
+- Java 21 (LTS), Spring Boot 4.1.1 (a versão estável atual; o Spring Initializr já não oferece a linha 3), Maven com Maven Wrapper. No Boot 4 o Jackson é o 3 (pacote `tools.jackson`) e o Testcontainers é o 2.
 - Spring Web, Spring Security (OAuth2 Resource Server para validar os JWTs próprios), Spring Data JPA, Bean Validation.
 - PostgreSQL 16, Flyway (sem `ddl-auto=update`; o Hibernate só faz `validate`).
-- springdoc-openapi (Swagger UI em `/swagger-ui`).
+- springdoc-openapi 3.1.1, a linha compatível com o Boot 4 (Swagger UI em `/swagger-ui`).
 - JUnit 5, MockMvc, Testcontainers.
 
 ### Pacotes (por funcionalidade)
@@ -123,7 +123,7 @@ run
 refresh_token
   id                 uuid PK
   player_id          uuid FK ON DELETE CASCADE
-  token_hash         char(64) NOT NULL UNIQUE          -- SHA-256 em hex
+  token_hash         varchar(64) NOT NULL UNIQUE         -- SHA-256 em hex
   expires_at         timestamptz NOT NULL
   revoked_at         timestamptz NULL
   created_at         timestamptz NOT NULL
@@ -223,12 +223,14 @@ Dinos sem linha em `dino_progress` simplesmente não aparecem nos mapas, igual a
 - `cleared[d]` entre -1 e o último índice de dificuldade;
 - `difficulty[d]` válida e já liberada;
 - níveis da loja ≤ número de custos do item, e só itens que existem para aquele dino;
-- `mastery[d]` ≤ XP necessário para o nível máximo;
+- `mastery[d]` entre 0 e 10.000.000 (o jogo continua somando XP depois do nível máximo, então não há teto real; o limite só barra valores absurdos);
 - dinos e itens desconhecidos são recusados com `400`.
 
 Marca `imported_at = now()`. O cliente não apaga o save local.
 
-**Vitória no chefe (`/api/clears`).** Aplica a mesma regra do `applyClear` atual: se o índice da dificuldade for maior que `cleared_index`, atualiza o índice, soma `firstWinBonus` aos Fósseis e devolve o bônus e o nome da próxima dificuldade. Senão, devolve `{firstWinBonus: 0}`. É idempotente sem precisar de chave.
+**Vitória no chefe (`/api/clears`).** Aplica a mesma regra do `applyClear` atual: se o índice da dificuldade for maior que `cleared_index`, atualiza o índice, soma `firstWinBonus` aos Fósseis e devolve o bônus e o nome da próxima dificuldade. Senão, devolve `{firstWinBonus: 0}`. É idempotente sem precisar de chave. Uma dificuldade ainda não liberada para o dino (índice > `cleared_index + 1`) é recusada com `409 DIFFICULTY_LOCKED`.
+
+**`unlockedDifficulty`** (em `/api/clears` e nas recompensas de `/api/runs`) é o **id** da dificuldade liberada (`"normal"`), não o nome. Os nomes de exibição ficam só no cliente, que faz a conversão.
 
 **`RunRequest`:**
 
@@ -239,7 +241,7 @@ era: int ≥ 0; endlessTime: number ≥ 0; damageDealt, damageTaken: number ≥ 
 upgrades: [{id, name, rarity, level}] (máx. 100 itens)
 ```
 
-Consistência (`400` se violada): `victory ⇒ bossKilled`; `era > 0 ⇒ endless ∧ bossKilled`; `endless ⇒ bossKilled`; `endlessTime ≤ elapsedTime`.
+Consistência (`400` se violada): `victory ⇒ bossKilled`; `era > 0 ⇒ endless ∧ bossKilled`; `endless ⇒ bossKilled`; `endlessTime ≤ elapsedTime`. Uma dificuldade ainda não liberada para o dino é recusada com `409 DIFFICULTY_LOCKED`, como em `/api/clears`.
 
 **Processamento de `POST /api/runs` (uma transação):**
 
@@ -291,7 +293,9 @@ A ordem do array `difficulties` define o índice usado em `cleared_index`.
 - `META_ECONOMY` (em `meta.ts`) passa a vir do JSON.
 - Cada `DifficultyDef` em `difficulty.ts` pega `fossilMult` e `firstWinBonus` do JSON pelo `id`. Nome, descrição, cor e multiplicadores de inimigos continuam no TS.
 - Cada `ShopItemDef` em `meta.ts` pega `costs` do JSON pelo `id`. Nome, descrição e efeitos continuam no TS.
-- Um id presente no TS e ausente no JSON (ou o contrário) causa erro na carga do módulo, e por isso também no `typecheck`/teste.
+- Um id presente no TS e ausente no JSON (ou o contrário) causa erro na carga do módulo, e por isso também nos testes.
+- O JSON é importado com `with { type: 'json' }`, que funciona no Vite e no Node. Como `meta.ts` passa a importar módulos de verdade (antes só importava tipos), os scripts `balance*` passam a usar o mesmo loader dos testes (`tools/balance/loader/register.mjs`), que resolve imports sem extensão.
+- `RunState` ganha um campo `id` (UUID gerado no início da run), usado como chave de idempotência em `POST /api/runs`.
 
 ### No servidor
 
