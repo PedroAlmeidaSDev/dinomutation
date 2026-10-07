@@ -8,13 +8,14 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "balance": "node --experimental-strip-types --no-warnings tools/balance/sim.ts",
-    "balance:antes": "node --experimental-strip-types --no-warnings tools/balance/sim.ts --antes",
-    "balance:carreira": "node --experimental-strip-types --no-warnings tools/balance/sim.ts 40 --carreira",
+    "balance": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/sim.ts",
+    "balance:antes": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/sim.ts --antes",
+    "balance:carreira": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/sim.ts 40 --carreira",
     "test:boss": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/boss-test.ts",
     "test:endless": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/endless-test.ts",
     "test:save": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/save-test.ts",
-    "test": "npm run test:boss && npm run test:endless && npm run test:save"
+    "test:economy": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/economy/economy-test.ts",
+    "test": "npm run test:boss && npm run test:endless && npm run test:save && npm run test:economy"
   },
   "dependencies": {
     "@fontsource/chakra-petch": "^5.3.0",

@@ -1,0 +1,51 @@
+{
+  "runs": [
+    {
+      "name": "derrota curta sem chefe (Normal)",
+      "input": { "difficulty": "normal", "elapsedTime": 95.4, "kills": 59, "eliteKilled": false, "bossKilled": false },
+      "expected": { "fossils": 23, "masteryXp": 23 }
+    },
+    {
+      "name": "derrota com elite (Filhote)",
+      "input": { "difficulty": "filhote", "elapsedTime": 412.7, "kills": 361, "eliteKilled": true, "bossKilled": false },
+      "expected": { "fossils": 111, "masteryXp": 143 }
+    },
+    {
+      "name": "vitória Normal",
+      "input": { "difficulty": "normal", "elapsedTime": 900, "kills": 1240, "eliteKilled": true, "bossKilled": true },
+      "expected": { "fossils": 405, "masteryXp": 365 }
+    },
+    {
+      "name": "vitória Predador",
+      "input": { "difficulty": "predador", "elapsedTime": 903.25, "kills": 1317, "eliteKilled": true, "bossKilled": true },
+      "expected": { "fossils": 569, "masteryXp": 365 }
+    },
+    {
+      "name": "vitória Extinção",
+      "input": { "difficulty": "extincao", "elapsedTime": 911.9, "kills": 1402, "eliteKilled": true, "bossKilled": true },
+      "expected": { "fossils": 739, "masteryXp": 367 }
+    },
+    {
+      "name": "Era Sem Fim (Filhote)",
+      "input": { "difficulty": "filhote", "elapsedTime": 1733.3, "kills": 3020, "eliteKilled": true, "bossKilled": true },
+      "expected": { "fossils": 482, "masteryXp": 573 }
+    },
+    {
+      "name": "run vazia",
+      "input": { "difficulty": "normal", "elapsedTime": 0, "kills": 0, "eliteKilled": false, "bossKilled": false },
+      "expected": { "fossils": 0, "masteryXp": 0 }
+    }
+  ],
+  "masteryLevels": [
+    { "xp": 0, "level": 1 },
+    { "xp": 99, "level": 1 },
+    { "xp": 100, "level": 2 },
+    { "xp": 299, "level": 2 },
+    { "xp": 300, "level": 3 },
+    { "xp": 599, "level": 3 },
+    { "xp": 600, "level": 4 },
+    { "xp": 4499, "level": 9 },
+    { "xp": 4500, "level": 10 },
+    { "xp": 99999, "level": 10 }
+  ]
+}

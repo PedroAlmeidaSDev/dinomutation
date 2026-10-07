@@ -1,3 +1,5 @@
+import { ECONOMY, assertSameIds, difficultyEconomy } from './economy';
+
 /**
  * Per-dinosaur difficulty ladder. Only the first one starts unlocked; beating a
  * difficulty with a dinosaur unlocks the next one for that dinosaur.
@@ -24,24 +26,32 @@ export interface DifficultyDef {
   firstWinBonus: number;
 }
 
+/** Fósseis multiplier and first-win bonus live in shared/economy.json (the server pays them too). */
+const pay = (id: DifficultyId): Pick<DifficultyDef, 'fossilMult' | 'firstWinBonus'> => {
+  const { fossilMult, firstWinBonus } = difficultyEconomy(id);
+  return { fossilMult, firstWinBonus };
+};
+
 export const DIFFICULTIES: DifficultyDef[] = [
   {
     id: 'filhote', name: 'Filhote', description: 'Para aprender. Inimigos e chefe bem mais fracos.', color: 0x8ad06a,
-    enemyHp: 0.75, enemyDamage: 0.7, bossHp: 0.6, bossDamage: 0.55, fossilMult: 0.75, firstWinBonus: 60,
+    enemyHp: 0.75, enemyDamage: 0.7, bossHp: 0.6, bossDamage: 0.55, ...pay('filhote'),
   },
   {
     id: 'normal', name: 'Normal', description: 'O desafio de verdade.', color: 0xe8c860,
-    enemyHp: 1, enemyDamage: 1, bossHp: 1, bossDamage: 1, fossilMult: 1, firstWinBonus: 150,
+    enemyHp: 1, enemyDamage: 1, bossHp: 1, bossDamage: 1, ...pay('normal'),
   },
   {
     id: 'predador', name: 'Predador', description: 'Inimigos e chefe mais fortes. Mais Fósseis.', color: 0xff8a3a,
-    enemyHp: 1.3, enemyDamage: 1.25, bossHp: 1.45, bossDamage: 1.35, fossilMult: 1.4, firstWinBonus: 250,
+    enemyHp: 1.3, enemyDamage: 1.25, bossHp: 1.45, bossDamage: 1.35, ...pay('predador'),
   },
   {
     id: 'extincao', name: 'Extinção', description: 'Só para os mais aptos. Muito mais Fósseis.', color: 0xff4a5a,
-    enemyHp: 1.5, enemyDamage: 1.45, bossHp: 1.8, bossDamage: 1.6, fossilMult: 1.8, firstWinBonus: 400,
+    enemyHp: 1.5, enemyDamage: 1.45, bossHp: 1.8, bossDamage: 1.6, ...pay('extincao'),
   },
 ];
+
+assertSameIds('dificuldades', DIFFICULTIES.map((d) => d.id), ECONOMY.difficulties.map((d) => d.id));
 
 export const DIFFICULTY_BY_ID = Object.fromEntries(DIFFICULTIES.map((d) => [d.id, d])) as Record<DifficultyId, DifficultyDef>;
 

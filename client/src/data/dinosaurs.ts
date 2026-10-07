@@ -1,4 +1,5 @@
 import type { StatKey } from '../game/components/StatsComponent';
+import { ECONOMY, assertSameIds } from './economy';
 
 export type DinoId = 'trex' | 'raptor' | 'triceratops';
 export type AbilityId = 'roar' | 'pounce' | 'charge';
@@ -166,3 +167,5 @@ export const DINOSAURS: Record<DinoId, DinoDef> = {
 };
 
 export const DINO_ORDER: DinoId[] = ['trex', 'raptor', 'triceratops'];
+
+assertSameIds('dinos', DINO_ORDER, ECONOMY.dinos);

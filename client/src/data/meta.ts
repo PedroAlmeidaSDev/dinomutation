@@ -1,5 +1,6 @@
 import type { EffectDefinition } from '../game/upgrades/UpgradeTypes';
 import type { DinoId } from './dinosaurs';
+import { ECONOMY, assertSameIds, itemCosts } from './economy';
 
 /**
  * Out-of-run progression. Two currencies:
@@ -10,10 +11,7 @@ import type { DinoId } from './dinosaurs';
  * Shop items, passives and ability ranks are applied at run start as hidden upgrades, so
  * they reuse the regular effect engine (stat / trigger / flag) and never show up on cards.
  */
-export const META_ECONOMY = {
-  fossils: { perMinute: 15, perKills: 60, elite: 40, boss: 120 },
-  mastery: { secondsPerXp: 4, elite: 40, boss: 100, maxLevel: 10, xpPerLevel: 100 },
-};
+export const META_ECONOMY = { fossils: ECONOMY.fossils, mastery: ECONOMY.mastery };
 
 export interface ShopItemDef {
   id: string;
@@ -43,48 +41,53 @@ export interface AbilityMasteryDef {
   effects: EffectDefinition[];
 }
 
-/** Five tiers per item: cheap first steps for a quick sense of progress, pricey late ones. */
-const COSTS = [30, 70, 150, 300, 480];
-
-const SHARED_ITEMS: ShopItemDef[] = [
+/**
+ * Items every dinosaur sells. Costs come from shared/economy.json: five tiers per item,
+ * cheap first steps for a quick sense of progress, pricey late ones.
+ */
+const sharedItems = (dino: DinoId): ShopItemDef[] => [
   {
     id: 'meta_vida', name: 'Ossos Robustos', description: '+12% de vida máxima por nível.',
-    effects: [{ type: 'stat', stat: 'maxHealth', mode: 'mult', value: 0.12 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'maxHealth', mode: 'mult', value: 0.12 }], costs: itemCosts(dino, 'meta_vida'),
   },
   {
     id: 'meta_dano', name: 'Músculos Ancestrais', description: '+12% de dano por nível.',
-    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.12 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'damage', mode: 'mult', value: 0.12 }], costs: itemCosts(dino, 'meta_dano'),
   },
   {
     id: 'meta_armadura', name: 'Couro Curtido', description: '+5 de armadura por nível.',
-    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 5 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'armor', mode: 'add', value: 5 }], costs: itemCosts(dino, 'meta_armadura'),
   },
   {
     id: 'meta_genes', name: 'Genes Adaptativos', description: '+6% de DNA (XP) ganho por nível.',
-    effects: [{ type: 'stat', stat: 'xpGain', mode: 'mult', value: 0.06 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'xpGain', mode: 'mult', value: 0.06 }], costs: itemCosts(dino, 'meta_genes'),
   },
 ];
 
 const SIGNATURE_ITEMS: Record<DinoId, ShopItemDef> = {
   trex: {
     id: 'meta_trex_crit', name: 'Mandíbula Ancestral', description: '+3% de chance de crítico por nível.',
-    effects: [{ type: 'stat', stat: 'critChance', mode: 'add', value: 0.03 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'critChance', mode: 'add', value: 0.03 }], costs: itemCosts('trex', 'meta_trex_crit'),
   },
   raptor: {
     id: 'meta_raptor_claw', name: 'Garras Afiadas', description: '+8% de dano de garra por nível.',
-    effects: [{ type: 'stat', stat: 'dmg_claw', mode: 'add', value: 0.08 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'dmg_claw', mode: 'add', value: 0.08 }], costs: itemCosts('raptor', 'meta_raptor_claw'),
   },
   triceratops: {
     id: 'meta_tri_horn', name: 'Chifres Afiados', description: '+8% de dano de chifrada por nível.',
-    effects: [{ type: 'stat', stat: 'dmg_horn', mode: 'add', value: 0.08 }], costs: COSTS,
+    effects: [{ type: 'stat', stat: 'dmg_horn', mode: 'add', value: 0.08 }], costs: itemCosts('triceratops', 'meta_tri_horn'),
   },
 };
 
 export const SHOP: Record<DinoId, ShopItemDef[]> = {
-  trex: [...SHARED_ITEMS, SIGNATURE_ITEMS.trex],
-  raptor: [...SHARED_ITEMS, SIGNATURE_ITEMS.raptor],
-  triceratops: [...SHARED_ITEMS, SIGNATURE_ITEMS.triceratops],
+  trex: [...sharedItems('trex'), SIGNATURE_ITEMS.trex],
+  raptor: [...sharedItems('raptor'), SIGNATURE_ITEMS.raptor],
+  triceratops: [...sharedItems('triceratops'), SIGNATURE_ITEMS.triceratops],
 };
+
+for (const dino of Object.keys(SHOP) as DinoId[]) {
+  assertSameIds(`loja de ${dino}`, SHOP[dino].map((i) => i.id), (ECONOMY.shop[dino] ?? []).map((i) => i.id));
+}
 
 /** Passives in unlock order (slot 0, 1, 2 of MASTERY_TRACK). */
 export const PASSIVES: Record<DinoId, PassiveDef[]> = {
