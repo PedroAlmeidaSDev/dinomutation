@@ -1,0 +1,6 @@
+# Local development (./mvnw spring-boot:run -Dspring-boot.run.profiles=dev). Never use in production.
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-0123456789abcdef}
+  cookie:
+    secure: ${COOKIE_SECURE:false}

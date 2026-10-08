@@ -1,0 +1,7 @@
+app:
+  jwt:
+    secret: test-secret-0123456789abcdef0123456789abcdef
+  google:
+    client-id: test-client-id
+  cookie:
+    secure: false
