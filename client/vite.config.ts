@@ -8,5 +8,7 @@ export default defineConfig({
   server: {
     // shared/economy.json lives outside client/.
     fs: { allow: ['..'] },
+    // Same-origin API in development (production: Vercel rewrite, see the README).
+    proxy: { '/api': 'http://localhost:8080' },
   },
 });
