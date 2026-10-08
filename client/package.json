@@ -15,7 +15,7 @@
     "test:endless": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/endless-test.ts",
     "test:save": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/balance/save-test.ts",
     "test:economy": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/economy/economy-test.ts",
-    "test:net": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/net/api-test.ts",
+    "test:net": "node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/net/api-test.ts && node --experimental-transform-types --no-warnings --import ./tools/balance/loader/register.mjs tools/net/cloud-test.ts",
     "test": "npm run test:boss && npm run test:endless && npm run test:save && npm run test:economy && npm run test:net"
   },
   "dependencies": {
