@@ -1,8 +1,11 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { CURRENT_PATCH } from '../../data/patchNotes';
+import { currentAccount, signOut } from '../core/save/session';
 import { saveStore } from '../core/save/SaveStore';
 import { formatTime } from '../../utils/math';
+import { API_ENABLED } from '../../net/env';
+import { AuthModal } from '../../ui-dom/AuthModal';
 import { PatchNotes } from '../ui/PatchNotes';
 import { centerDesign, designOffset, onLayout, safeInsets } from '../ui/layout';
 import { COLORS, button, fullscreenButton, text, title as titleText } from '../ui/theme';
@@ -14,6 +17,7 @@ export class MenuScene extends Phaser.Scene {
   /** Keys that close the patch notes must not also start the game. */
   private notesClosedAt = -Infinity;
   private leaving = false;
+  private modal: AuthModal | null = null;
 
   constructor() {
     super('Menu');
@@ -23,6 +27,7 @@ export class MenuScene extends Phaser.Scene {
     this.walkers = [];
     this.notes = null;
     this.leaving = false;
+    this.modal = null;
     centerDesign(this, [
       this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.6),
       this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.72),
@@ -56,6 +61,7 @@ export class MenuScene extends Phaser.Scene {
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
     text(this, GAME_WIDTH / 2, 526, info, 15, COLORS.muted).setOrigin(0.5).setDepth(1);
     if (save.fossils > 0) text(this, GAME_WIDTH / 2, 552, `${save.fossils} FÓSSEIS`, 16, COLORS.acidText, true).setOrigin(0.5).setDepth(1).setLetterSpacing(2);
+    if (API_ENABLED) this.accountButton();
 
     text(this, GAME_WIDTH / 2, GAME_HEIGHT - 44, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
@@ -84,9 +90,46 @@ export class MenuScene extends Phaser.Scene {
   }
 
   private go(): void {
-    if (this.leaving || this.notes?.isOpen || this.time.now - this.notesClosedAt < 250) return;
+    if (this.leaving || this.modal || this.notes?.isOpen || this.time.now - this.notesClosedAt < 250) return;
     this.leaving = true;
     this.scene.start('CharacterSelect');
+  }
+
+  /** "Entrar / criar conta" for guests; the account name and "sair" when signed in. */
+  private accountButton(): void {
+    const account = currentAccount();
+    const name = account ? account.displayName.toUpperCase().slice(0, 18) : '';
+    const label = account ? `${name} · SAIR` : 'ENTRAR / CRIAR CONTA';
+    button(this, GAME_WIDTH / 2, 604, label, () => (account ? void this.leaveAccount() : this.openAuth()), {
+      width: 300, height: 40, fontSize: 14, ghost: true,
+    }).setDepth(1);
+  }
+
+  private openAuth(): void {
+    if (this.modal || this.leaving) return;
+    this.setInputEnabled(false);
+    this.modal = new AuthModal(
+      () => {
+        this.modal = null;
+        this.setInputEnabled(true);
+        this.scene.restart();
+      },
+      () => {
+        this.modal = null;
+        this.setInputEnabled(true);
+      },
+    );
+  }
+
+  private async leaveAccount(): Promise<void> {
+    await signOut();
+    this.scene.restart();
+  }
+
+  /** The HTML dialog takes over input while open (the scene's input plugin outlives restarts). */
+  private setInputEnabled(on: boolean): void {
+    this.input.enabled = on;
+    if (this.input.keyboard) this.input.keyboard.enabled = on;
   }
 
   update(_t: number, delta: number): void {
