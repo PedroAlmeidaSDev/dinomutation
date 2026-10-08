@@ -5,7 +5,7 @@ import type { DifficultyId } from '../../data/difficulty';
 import type { DinoId } from '../../data/dinosaurs';
 import { DEBUG } from '../config';
 import { Run } from '../core/Run';
-import { recordClear } from '../core/Save';
+import { saveStore } from '../core/save/SaveStore';
 import { prefersTouch } from '../ui/TouchControls';
 import type { HUDScene } from './HUDScene';
 
@@ -71,7 +71,9 @@ export class RunScene extends Phaser.Scene {
     this.run.bus.on('storyBossDefeated', () => {
       // Save the win now: the player may go endless and quit without seeing the result screen.
       const state = this.run.run;
-      state.firstClear = recordClear(state.dinosaur, state.difficulty);
+      void saveStore().recordClear(state.dinosaur, state.difficulty)
+        .then((clear) => { state.firstClear = clear; })
+        .catch(() => undefined);
       this.victoryPending = true;
       // Let the boss explosion play before asking.
       this.time.delayedCall(1600, () => this.offerEndless());

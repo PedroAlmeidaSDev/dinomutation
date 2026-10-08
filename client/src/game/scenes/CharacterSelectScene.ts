@@ -2,7 +2,8 @@ import Phaser from 'phaser';
 import { DIFFICULTIES, DIFFICULTY_BY_ID, difficultyIndex, highestUnlocked, type DifficultyId } from '../../data/difficulty';
 import { DINOSAURS, DINO_ORDER, type DinoId } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { clearedIndex, loadSave, preferredDifficulty, rememberDifficulty, type SaveData } from '../core/Save';
+import { clearedIndex, preferredDifficulty, type SaveData } from '../core/Save';
+import { saveStore } from '../core/save/SaveStore';
 import { masteryLevel } from '../../data/meta';
 import { formatTime } from '../../utils/math';
 import { centerDesign } from '../ui/layout';
@@ -27,7 +28,7 @@ export class CharacterSelectScene extends Phaser.Scene {
 
   create(data?: { dino?: DinoId }): void {
     this.cards = [];
-    this.save = loadSave();
+    this.save = saveStore().current();
     this.selected = data?.dino ?? this.save.lastDino ?? 'trex';
     this.difficulty = preferredDifficulty(this.save, this.selected);
     centerDesign(this, [
@@ -104,7 +105,7 @@ export class CharacterSelectScene extends Phaser.Scene {
   }
 
   private start(): void {
-    rememberDifficulty(this.selected, this.difficulty);
+    saveStore().rememberDifficulty(this.selected, this.difficulty);
     this.cameras.main.fadeOut(250);
     this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Run', { dino: this.selected, difficulty: this.difficulty }));
   }

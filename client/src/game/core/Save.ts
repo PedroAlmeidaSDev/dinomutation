@@ -1,12 +1,14 @@
 import { DIFFICULTIES, DIFFICULTY_BY_ID, difficultyIndex, highestUnlocked, type DifficultyId } from '../../data/difficulty';
-import { DINO_ORDER, type DinoId } from '../../data/dinosaurs';
+import type { DinoId } from '../../data/dinosaurs';
 import {
   fossilsForRun, loadoutFor, masteryLevel, masteryXpForRun, unlocksAtMastery, type MetaBonus, type ShopItemDef,
 } from '../../data/meta';
 import type { FirstClear, RunState } from './RunState';
 
-const KEY = 'dino-roguelite-save-v1';
-
+/**
+ * Save format and the pure rules that change it. Where the save lives (browser or API) is
+ * the SaveStore's job (core/save/); these functions only read or mutate a SaveData.
+ */
 export interface SaveData {
   runs: number;
   wins: number;
@@ -32,41 +34,11 @@ export interface SaveData {
   difficulty: Partial<Record<DinoId, DifficultyId>>;
 }
 
-function empty(): SaveData {
+export function emptySave(): SaveData {
   return {
     runs: 0, wins: 0, bestTime: 0, bestByDino: {}, fossils: 0, mastery: {}, shop: {},
     endlessRuns: 0, bestEra: 0, bestEraByDino: {}, cleared: {}, difficulty: {},
   };
-}
-
-export function loadSave(): SaveData {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return empty();
-    // Older saves (before meta-progression / endless mode) simply lack the new fields.
-    const parsed = JSON.parse(raw) as Partial<SaveData>;
-    const save = { ...empty(), ...parsed } as SaveData;
-    // Before difficulties: players who already won skip Filhote (Normal unlocked for every dino).
-    if (!parsed.cleared && save.wins > 0) for (const d of DINO_ORDER) save.cleared[d] = 0;
-    return save;
-  } catch {
-    return empty();
-  }
-}
-
-export function writeSave(data: SaveData): void {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(data));
-  } catch {
-    // storage unavailable (private mode etc.) — progress simply isn't kept
-  }
-}
-
-/** Marks the patch notes of `version` as seen so they aren't shown again. */
-export function markPatchSeen(version: string): void {
-  const s = loadSave();
-  s.seenPatch = version;
-  writeSave(s);
 }
 
 export interface RunRewards {
@@ -83,8 +55,15 @@ export interface RunRewards {
   unlocks: string[];
 }
 
-export function recordRun(state: RunState, victory: boolean): { save: SaveData; rewards: RunRewards } {
-  const s = loadSave();
+export interface RunRecordResult {
+  save: SaveData;
+  rewards: RunRewards;
+  /** Cloud only: the API couldn't be reached, the run was queued and `rewards` is a local preview. */
+  pending?: boolean;
+}
+
+/** Applies a finished run to `s` and returns its rewards (a story win also counts as a clear). */
+export function applyRun(s: SaveData, state: RunState, victory: boolean): RunRewards {
   const dino = state.dinosaur;
   s.runs += 1;
   if (victory) s.wins += 1;
@@ -102,35 +81,32 @@ export function recordRun(state: RunState, victory: boolean): { save: SaveData; 
   // The clear is normally saved when the boss fell (recordClear); this covers callers that didn't.
   const clear = state.firstClear ?? (victory ? applyClear(s, dino, state.difficulty) : undefined);
   const firstWinBonus = clear?.firstWinBonus ?? 0;
-  const fossils = runFossils + firstWinBonus;
   const masteryXp = masteryXpForRun(state);
   const xpBefore = s.mastery[dino] ?? 0;
   const levelBefore = masteryLevel(xpBefore);
   s.fossils += runFossils;
   s.mastery[dino] = xpBefore + masteryXp;
   const levelAfter = masteryLevel(s.mastery[dino]!);
+  return {
+    fossils: runFossils + firstWinBonus, firstWinBonus, unlockedDifficulty: clear?.unlockedDifficulty,
+    masteryXp, levelBefore, levelAfter, unlocks: unlocksBetween(dino, levelBefore, levelAfter),
+  };
+}
+
+/** Human-readable unlocks of the mastery levels gained between two levels. */
+export function unlocksBetween(dino: DinoId, levelBefore: number, levelAfter: number): string[] {
   const unlocks: string[] = [];
   for (let l = levelBefore + 1; l <= levelAfter; l++) unlocks.push(...unlocksAtMastery(dino, l));
-
-  writeSave(s);
-  return { save: s, rewards: { fossils, firstWinBonus, unlockedDifficulty: clear?.unlockedDifficulty, masteryXp, levelBefore, levelAfter, unlocks } };
+  return unlocks;
 }
 
 // ─────────────────────────── difficulty ───────────────────────────
 
 /**
- * Saves a story win right when the boss falls: unlocks the next difficulty and pays the
- * first-win bonus. Quitting mid-endless (or closing the tab) skips the result screen, so
- * this can't wait for recordRun. Returns undefined if the difficulty was already beaten.
+ * First win on a difficulty with a dinosaur: unlocks the next one and pays the first-win
+ * bonus. Returns undefined if that difficulty was already beaten.
  */
-export function recordClear(dino: DinoId, difficulty: DifficultyId): FirstClear | undefined {
-  const s = loadSave();
-  const clear = applyClear(s, dino, difficulty);
-  if (clear) writeSave(s);
-  return clear;
-}
-
-function applyClear(s: SaveData, dino: DinoId, difficulty: DifficultyId): FirstClear | undefined {
+export function applyClear(s: SaveData, dino: DinoId, difficulty: DifficultyId): FirstClear | undefined {
   const idx = difficultyIndex(difficulty);
   if (idx <= clearedIndex(s, dino)) return undefined;
   s.cleared[dino] = idx;
@@ -155,12 +131,6 @@ export function preferredDifficulty(s: SaveData, dino: DinoId): DifficultyId {
   return DIFFICULTIES[highestUnlocked(clearedIndex(s, dino))].id;
 }
 
-export function rememberDifficulty(dino: DinoId, id: DifficultyId): void {
-  const s = loadSave();
-  s.difficulty[dino] = id;
-  writeSave(s);
-}
-
 // ─────────────────────────── shop ───────────────────────────
 
 export function shopLevel(s: SaveData, dino: DinoId, itemId: string): number {
@@ -176,26 +146,16 @@ export function purchaseStatus(s: SaveData, dino: DinoId, item: ShopItemDef): Pu
   return 'ok';
 }
 
-/** Buys the next level of an item. Returns the updated save, or null if not allowed. */
-export function purchase(dino: DinoId, item: ShopItemDef): SaveData | null {
-  const s = loadSave();
-  if (purchaseStatus(s, dino, item) !== 'ok') return null;
+/** Buys the next level of an item in `s`. Returns false if not allowed. */
+export function applyPurchase(s: SaveData, dino: DinoId, item: ShopItemDef): boolean {
+  if (purchaseStatus(s, dino, item) !== 'ok') return false;
   const lvl = shopLevel(s, dino, item.id);
   s.fossils -= item.costs[lvl];
   s.shop[dino] = { ...s.shop[dino], [item.id]: lvl + 1 };
-  writeSave(s);
-  return s;
+  return true;
 }
 
-export function metaLoadout(dino: DinoId, s: SaveData = loadSave()): MetaBonus[] {
+/** Hidden upgrades applied at run start: shop levels, passive ranks and ability ranks. */
+export function metaLoadout(dino: DinoId, s: SaveData): MetaBonus[] {
   return loadoutFor(dino, s.shop[dino] ?? {}, s.mastery[dino] ?? 0);
-}
-
-/** Debug helper (?debug): grants fossils and mastery to every dinosaur. */
-export function debugGrant(fossils: number, masteryXp: number): SaveData {
-  const s = loadSave();
-  s.fossils += fossils;
-  for (const d of DINO_ORDER) s.mastery[d] = (s.mastery[d] ?? 0) + masteryXp;
-  writeSave(s);
-  return s;
 }

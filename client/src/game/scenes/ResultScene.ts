@@ -3,7 +3,8 @@ import { DIFFICULTY_BY_ID } from '../../data/difficulty';
 import { DINOSAURS } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { RunState } from '../core/RunState';
-import { recordRun, type RunRewards } from '../core/Save';
+import type { RunRewards } from '../core/Save';
+import { saveStore } from '../core/save/SaveStore';
 import { masteryProgress } from '../../data/meta';
 import { formatTime } from '../../utils/math';
 import { centerDesign } from '../ui/layout';
@@ -21,8 +22,6 @@ export abstract class ResultScene extends Phaser.Scene {
 
   create(data: { state: RunState }): void {
     const s = data.state;
-    // s.victory: the story boss died (a death later in the endless mode still counts as a win).
-    const { save, rewards } = recordRun(s, s.victory);
     const dino = DINOSAURS[s.dinosaur];
 
     centerDesign(this, [
@@ -66,14 +65,15 @@ export abstract class ResultScene extends Phaser.Scene {
         ? ['ERA SEM FIM', `Era ${s.era} · ${formatTime(s.endlessTime)}`]
         : ['ELITE', s.eliteKilled ? 'Derrotada' : '—'],
       ['BUILD', s.primaryTag ? s.primaryTag.toUpperCase() : '—'],
-      s.endless
-        ? ['MELHOR ERA', `${save.bestEraByDino[s.dinosaur] ?? s.era}`]
-        : ['MELHOR TEMPO', formatTime(save.bestTime)],
     ];
     rows.forEach(([k, v], i) => {
       text(this, 175, 186 + i * 36, k, 16, COLORS.muted, true);
       text(this, 545, 186 + i * 36, v, 18, COLORS.text, true).setOrigin(1, 0);
     });
+    // The last row is a record (best time / best era): it comes from the save, filled in once it answers.
+    const bestY = 186 + rows.length * 36;
+    text(this, 175, bestY, s.endless ? 'MELHOR ERA' : 'MELHOR TEMPO', 16, COLORS.muted, true);
+    const bestValue = text(this, 545, bestY, '…', 18, COLORS.text, true).setOrigin(1, 0);
 
     this.buildRightPanel(s);
 
@@ -82,7 +82,20 @@ export abstract class ResultScene extends Phaser.Scene {
       text(this, 175, 494, `MUTAÇÕES DE ERA: ${s.mutations.join(' · ')}`, 13, '#e0a0ff', true).setWordWrapWidth(390);
     }
 
-    this.drawRewards(s.dinosaur, save.mastery[s.dinosaur] ?? 0, rewards);
+    const saving = text(this, GAME_WIDTH / 2, 566, 'Salvando…', 16, COLORS.muted, true).setOrigin(0.5);
+    // s.victory: the story boss died (a death later in the endless mode still counts as a win).
+    saveStore().recordRun(s, s.victory).then(({ save, rewards, pending }) => {
+      if (!this.sys.isActive()) return;
+      saving.destroy();
+      bestValue.setText(s.endless ? `${save.bestEraByDino[s.dinosaur] ?? s.era}` : formatTime(save.bestTime));
+      this.drawRewards(s.dinosaur, save.mastery[s.dinosaur] ?? 0, rewards);
+      if (pending) {
+        text(this, GAME_WIDTH / 2, 150, 'Sem conexão: a run foi guardada e será enviada quando o jogo abrir de novo.', 13, COLORS.danger, true)
+          .setOrigin(0.5);
+      }
+    }).catch(() => {
+      if (this.sys.isActive()) saving.setText('Não foi possível salvar esta run.').setColor(COLORS.danger);
+    });
 
     const again = { dino: s.dinosaur, difficulty: s.difficulty };
     button(this, GAME_WIDTH / 2 - 150, GAME_HEIGHT - 80, 'JOGAR NOVAMENTE', () => this.scene.start('Run', again), { width: 280 });

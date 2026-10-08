@@ -4,7 +4,9 @@ import {
   ABILITY_MASTERY, ABILITY_MAX_RANK, PASSIVES, SHOP, abilityMasteryRank, masteryFor, masteryProgress, passiveRank, roman, type ShopItemDef,
 } from '../../data/meta';
 import { DEBUG, GAME_HEIGHT, GAME_WIDTH } from '../config';
-import { debugGrant, loadSave, purchase, purchaseStatus, shopLevel, type SaveData } from '../core/Save';
+import { purchaseStatus, shopLevel, type SaveData } from '../core/Save';
+import { debugGrant } from '../core/save/LocalSaveStore';
+import { saveStore } from '../core/save/SaveStore';
 import { COLORS, FONT, WEIGHT, button, drawBar, drawPanel, hex, text, title } from '../ui/theme';
 
 const LEFT = { x: 50, y: 150, w: 440, h: 480 };
@@ -17,13 +19,15 @@ export class LairScene extends Phaser.Scene {
   private save!: SaveData;
   private content!: Phaser.GameObjects.Container;
   private fossilsText!: Phaser.GameObjects.Text;
+  private buying = false;
 
   constructor() {
     super('Lair');
   }
 
   create(data: { dino?: DinoId }): void {
-    this.save = loadSave();
+    this.buying = false;
+    this.save = saveStore().current();
     this.dino = data.dino ?? this.save.lastDino ?? 'trex';
     this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setOrigin(0).setAlpha(0.5);
     this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.8).setOrigin(0);
@@ -41,7 +45,7 @@ export class LairScene extends Phaser.Scene {
     kb.on('keydown-RIGHT', () => this.move(1));
     kb.on('keydown-D', () => this.move(1));
     kb.once('keydown-ESC', () => this.scene.start('Menu'));
-    if (DEBUG) {
+    if (DEBUG && saveStore().kind === 'local') {
       text(this, GAME_WIDTH / 2, GAME_HEIGHT - 20, 'DEBUG · F: +500 fósseis e +500 XP de maestria', 12, COLORS.muted).setOrigin(0.5);
       kb.on('keydown-F', () => {
         this.save = debugGrant(500, 500);
@@ -176,23 +180,38 @@ export class LairScene extends Phaser.Scene {
       return;
     }
     const cost = item.costs[lvl];
-    const b = button(this, bx, by, `${cost} FÓSSEIS`, () => this.buy(item, bx, by), {
+    const b = button(this, bx, by, `${cost} FÓSSEIS`, () => void this.buy(item, bx, by), {
       width: 190, height: 46, fontSize: 16, ghost: status !== 'ok',
     });
     add(b);
   }
 
-  private buy(item: ShopItemDef, x: number, y: number): void {
-    const updated = purchase(this.dino, item);
+  /** One purchase at a time: with an account the shop waits for the API. */
+  private async buy(item: ShopItemDef, x: number, y: number): Promise<void> {
+    if (this.buying) return;
+    this.buying = true;
+    let updated: SaveData | null;
+    try {
+      updated = await saveStore().purchase(this.dino, item);
+    } catch {
+      this.buying = false;
+      if (this.sys.isActive()) this.floatText(x, y - 34, 'Não foi possível comprar agora', COLORS.danger, 14);
+      return;
+    }
+    this.buying = false;
+    if (!this.sys.isActive()) return;
     if (!updated) {
-      const t = text(this, x, y - 34, 'Fósseis insuficientes', 14, COLORS.danger, true).setOrigin(0.5);
-      this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 900, onComplete: () => t.destroy() });
+      this.floatText(x, y - 34, 'Fósseis insuficientes', COLORS.danger, 14);
       return;
     }
     this.save = updated;
     this.render();
-    const t = text(this, x, y - 30, `${item.name} ${shopLevel(updated, this.dino, item.id)}!`, 16, COLORS.acidText, true).setOrigin(0.5);
-    this.tweens.add({ targets: t, y: y - 60, alpha: 0, duration: 1000, onComplete: () => t.destroy() });
+    this.floatText(x, y - 30, `${item.name} ${shopLevel(updated, this.dino, item.id)}!`, COLORS.acidText, 16);
     this.cameras.main.flash(120, 255, 120, 80);
+  }
+
+  private floatText(x: number, y: number, message: string, color: string, size: number): void {
+    const t = text(this, x, y, message, size, color, true).setOrigin(0.5);
+    this.tweens.add({ targets: t, y: y - 28, alpha: 0, duration: 950, onComplete: () => t.destroy() });
   }
 }

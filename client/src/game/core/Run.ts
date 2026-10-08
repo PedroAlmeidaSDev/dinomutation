@@ -4,6 +4,7 @@ import { ARENA_OBSTACLES } from '../../data/arena';
 import type { DifficultyId } from '../../data/difficulty';
 import { DINOSAURS, type DinoId } from '../../data/dinosaurs';
 import { metaLoadout } from './Save';
+import { saveStore } from './save/SaveStore';
 import { AbilitySystem } from '../abilities/AbilitySystem';
 import { AutoAttackSystem } from '../combat/AutoAttackSystem';
 import { DamageSystem } from '../combat/DamageSystem';
@@ -76,7 +77,7 @@ export class Run implements RunContext {
 
     this.bus.on('onKill', ({ enemy }) => this.handleKill(enemy));
     // Shop levels and mastery passives bought outside the run.
-    this.upgrades.applyMeta(metaLoadout(dinoId));
+    this.upgrades.applyMeta(metaLoadout(dinoId, saveStore().current()));
   }
 
   // ─────────────────────────── RunContext helpers ───────────────────────────

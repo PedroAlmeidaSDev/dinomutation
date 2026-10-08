@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import { CURRENT_PATCH } from '../../data/patchNotes';
-import { loadSave, markPatchSeen } from '../core/Save';
+import { saveStore } from '../core/save/SaveStore';
 import { formatTime } from '../../utils/math';
 import { PatchNotes } from '../ui/PatchNotes';
 import { centerDesign, designOffset, onLayout, safeInsets } from '../ui/layout';
@@ -46,7 +46,7 @@ export class MenuScene extends Phaser.Scene {
     this.tweens.add({ targets: title, scale: 1.02, yoyo: true, repeat: -1, duration: 1600, ease: 'Sine.easeInOut' });
     text(this, GAME_WIDTH / 2, 222, 'ROGUELITE DE MUTAÇÕES JURÁSSICAS', 16, COLORS.muted, true).setOrigin(0.5).setLetterSpacing(4);
 
-    const save = loadSave();
+    const save = saveStore().current();
     button(this, GAME_WIDTH / 2, 320, 'JOGAR', () => this.go(), { width: 300, height: 64, fontSize: 28 }).setDepth(1);
     button(this, GAME_WIDTH / 2, 396, 'COVIL', () => this.scene.start('Lair'), { width: 300, height: 50, fontSize: 19, ghost: true }).setDepth(1);
     button(this, GAME_WIDTH / 2, 458, `NOVIDADES · v${CURRENT_PATCH.version}`, () => this.showNotes(), { width: 300, height: 44, fontSize: 15, ghost: true, color: COLORS.acid }).setDepth(1);
@@ -71,7 +71,7 @@ export class MenuScene extends Phaser.Scene {
     // Returning players see what changed once per version; brand-new players skip it.
     if (save.seenPatch !== CURRENT_PATCH.version) {
       if (save.runs > 0) this.time.delayedCall(350, () => this.showNotes());
-      else markPatchSeen(CURRENT_PATCH.version);
+      else saveStore().markPatchSeen(CURRENT_PATCH.version);
     }
   }
 
@@ -79,7 +79,7 @@ export class MenuScene extends Phaser.Scene {
     if (this.notes?.isOpen || this.leaving) return;
     this.notes = new PatchNotes(this, CURRENT_PATCH, () => {
       this.notesClosedAt = this.time.now;
-      markPatchSeen(CURRENT_PATCH.version);
+      saveStore().markPatchSeen(CURRENT_PATCH.version);
     });
   }
 

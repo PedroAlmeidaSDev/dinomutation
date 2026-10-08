@@ -1,5 +1,6 @@
 import type { DifficultyId } from '../../data/difficulty';
 import type { DinoId } from '../../data/dinosaurs';
+import { uuid } from '../../utils/uuid';
 
 export interface RunUpgradeRecord {
   id: string;
@@ -17,6 +18,8 @@ export interface FirstClear {
 
 /** Everything the result screens need to know about a run. */
 export interface RunState {
+  /** Generated when the run starts; the API uses it to ignore a resent run (POST /api/runs). */
+  id: string;
   dinosaur: DinoId;
   difficulty: DifficultyId;
   level: number;
@@ -46,6 +49,7 @@ export interface RunState {
 
 export function createRunState(dinosaur: DinoId, difficulty: DifficultyId = 'normal'): RunState {
   return {
+    id: uuid(),
     dinosaur,
     difficulty,
     level: 1,
