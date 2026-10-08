@@ -30,10 +30,17 @@ let fetchImpl: typeof fetch = (input, init) => fetch(input, init);
 let accessToken: string | null = null;
 let refreshing: Promise<RefreshResult> | null = null;
 let sessionLost: () => void = () => {};
+// Free-tier hosts can take ~40s to wake up from a cold start; stay below the dialog's patience.
+let requestTimeoutMs = 45_000;
 
 /** Test hook: replaces the global fetch. */
 export function setFetch(impl: typeof fetch): void {
   fetchImpl = impl;
+}
+
+/** Test hook: shortens the request timeout so slow/dead-server tests run fast. */
+export function setRequestTimeout(ms: number): void {
+  requestTimeoutMs = ms;
 }
 
 export function setAccessToken(token: string | null): void {
@@ -64,7 +71,11 @@ export async function api<T = unknown>(path: string, o: ApiOptions = {}): Promis
 export function refreshSession(): Promise<RefreshResult> {
   refreshing ??= (async (): Promise<RefreshResult> => {
     try {
-      const res = await fetchImpl('/api/auth/refresh', { method: 'POST', credentials: 'same-origin' });
+      const res = await fetchImpl('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'same-origin',
+        signal: AbortSignal.timeout(requestTimeoutMs),
+      });
       if (res.status >= 500) return 'offline';
       if (!res.ok) {
         accessToken = null;
@@ -92,6 +103,7 @@ async function send(path: string, o: ApiOptions, useAuth: boolean): Promise<Resp
       credentials: 'same-origin',
       keepalive: o.keepalive,
       body: o.body === undefined ? undefined : JSON.stringify(o.body),
+      signal: AbortSignal.timeout(requestTimeoutMs),
     });
   } catch {
     throw new ApiError(0, 'NETWORK', 'Servidor indisponível.');

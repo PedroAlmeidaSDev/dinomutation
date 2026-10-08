@@ -4,7 +4,7 @@
  *
  * Uso: npm run test:net
  */
-import { ApiError, api, onSessionLost, refreshSession, setAccessToken, setFetch } from '../../src/net/api.ts';
+import { ApiError, api, onSessionLost, refreshSession, setAccessToken, setFetch, setRequestTimeout } from '../../src/net/api.ts';
 
 let failures = 0;
 const check = (ok: boolean, msg: string) => {
@@ -118,6 +118,29 @@ console.log('\n── auth: false ──');
     check(e instanceof ApiError && e.code === 'INVALID_CREDENTIALS', 'erro de login chega como está');
   }
   check(calls.length === 1 && auth(calls[0]) === undefined, 'sem Authorization e sem tentar refresh');
+}
+
+console.log('\n── Tempo limite ──');
+{
+  setRequestTimeout(30);
+  setAccessToken('abc');
+  fake((_url, init) => new Promise<Response>((_resolve, reject) => {
+    // AbortSignal.timeout() uses an unref'd timer; without other pending I/O (there's no
+    // real fetch here) the event loop would never tick it, so this keeps it alive to test it.
+    const keepAlive = setInterval(() => {}, 1000);
+    init.signal?.addEventListener('abort', () => {
+      clearInterval(keepAlive);
+      reject(init.signal!.reason);
+    });
+  }));
+  try {
+    await api('/players/me/save');
+    check(false, 'deveria lançar');
+  } catch (e) {
+    check(e instanceof ApiError && e.offline, 'ApiError offline (status 0) ao expirar o tempo');
+  }
+  check((await refreshSession()) === 'offline', 'refresh também expira para offline');
+  setRequestTimeout(45_000);
 }
 
 console.log(failures ? `\n${failures} falha(s)` : '\nTudo certo');
