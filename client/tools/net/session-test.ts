@@ -7,7 +7,7 @@ import { saveStore } from '../../src/game/core/save/SaveStore.ts';
 import { hasLoginFlag, importGuestSave, resumeSession, signIn, signOut } from '../../src/game/core/save/session.ts';
 import { writeLocalSave } from '../../src/game/core/save/LocalSaveStore.ts';
 import { emptySave } from '../../src/game/core/Save.ts';
-import { setFetch } from '../../src/net/api.ts';
+import { api, setFetch } from '../../src/net/api.ts';
 
 const store = new Map<string, string>();
 (globalThis as any).localStorage = {
@@ -25,15 +25,20 @@ const json = (status: number, body?: unknown) =>
   new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 let refreshStatus = 200;
+let saveStatus = 200;
+let importStatus: 200 | 409 = 200;
 let imported: unknown = null;
+let fetchCalls = 0;
 const account = { email: 'pedro@example.com', displayName: 'Pedro', runs: 0, fossils: 0 };
 setFetch((async (input: RequestInfo | URL, init: RequestInit = {}) => {
+  fetchCalls++;
   const url = String(input);
   if (url === '/api/auth/refresh') return refreshStatus === 200 ? json(200, { accessToken: 'r', expiresIn: 900 }) : json(refreshStatus);
   if (url === '/api/auth/login') return json(200, { accessToken: 'l', expiresIn: 900 });
   if (url === '/api/auth/logout') return json(204);
-  if (url === '/api/players/me/save') return json(200, account);
+  if (url === '/api/players/me/save') return saveStatus === 200 ? json(200, account) : json(saveStatus);
   if (url === '/api/players/me/import') {
+    if (importStatus === 409) return json(409, { code: 'ALREADY_IMPORTED', detail: 'A conta já tem progresso.' });
     imported = JSON.parse(String(init.body)).save;
     return json(200, { ...account, runs: 5, fossils: 300 });
   }
@@ -41,7 +46,10 @@ setFetch((async (input: RequestInfo | URL, init: RequestInit = {}) => {
 }) as typeof fetch);
 
 console.log('\n── Abrir o jogo ──');
-check((await resumeSession(true)) === 'guest', 'sem marca de login: visitante sem chamar a API');
+{
+  const before = fetchCalls;
+  check((await resumeSession(true)) === 'guest' && fetchCalls === before, 'sem marca de login: visitante sem chamar a API');
+}
 store.set('dino-logged-in', '1');
 check((await resumeSession(false)) === 'guest', 'API desligada no build: visitante');
 check((await resumeSession(true)) === 'cloud' && saveStore().kind === 'cloud', 'com marca e refresh ok: nuvem');
@@ -61,6 +69,34 @@ console.log('\n── Entrar com progresso de visitante ──');
   await importGuestSave();
   check((imported as { runs: number }).runs === 5, 'envia o save do navegador');
   check(saveStore().current().fossils === 300, 'store passa a usar o save importado');
+}
+
+console.log('\n── Importar quando a conta já tem progresso ──');
+{
+  importStatus = 409;
+  const before = saveStore().current();
+  let threw = false;
+  try {
+    await importGuestSave();
+  } catch {
+    threw = true;
+  }
+  check(!threw, 'ALREADY_IMPORTED não lança');
+  check(
+    saveStore().kind === 'cloud' && saveStore().current().fossils === before.fossils && saveStore().current().runs === before.runs,
+    'a nuvem vence: o save da conta não muda',
+  );
+  importStatus = 200;
+}
+
+console.log('\n── Sessão perdida no meio do jogo ──');
+{
+  saveStatus = 401;
+  refreshStatus = 401;
+  await api('/players/me/save').catch(() => undefined);
+  check(saveStore().kind === 'local' && !hasLoginFlag(), 'chamada autenticada e refresh recusados: volta ao visitante e apaga a marca');
+  saveStatus = 200;
+  refreshStatus = 200;
 }
 
 console.log('\n── Sair ──');
