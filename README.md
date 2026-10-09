@@ -31,6 +31,7 @@ A API é um monólito organizado por funcionalidade (`auth`, `player`, `run`, `s
 | `POST /api/runs` | Registra uma run; o servidor calcula Fósseis e maestria (idempotente pelo id da run) |
 | `POST /api/clears` | Vitória no chefe: libera a próxima dificuldade e paga o bônus uma vez |
 | `POST /api/shop/purchases` | Compra no Covil (saldo conferido e debitado na mesma transação) |
+| `GET /api/leaderboard` | Ranking público dos maiores tempos sobrevividos: uma linha por jogador, filtros por dino e dificuldade, consulta com `DISTINCT ON` + `RANK()`. Com token, inclui a sua posição |
 
 A documentação interativa fica em `/swagger-ui` quando a API está rodando.
 
@@ -40,7 +41,7 @@ A documentação interativa fica em `/swagger-ui` quando a API está rodando.
 - **Rotação com detecção de reuso:** cada renovação invalida o refresh token usado. Se um token já usado aparecer de novo, todas as sessões da conta são encerradas.
 - **Mesma origem:** jogo e API ficam no mesmo domínio (rewrite da Vercel e proxy do Vite), então não há CORS para abrir e o cookie é *first-party*.
 - **Account pre-hijacking:** o cadastro com senha não confirma o e-mail. Quando alguém entra com o Google usando o e-mail de uma conta com senha, a conta é ligada ao Google, a senha é removida e as sessões antigas são encerradas: quem prova a posse do e-mail fica com a conta.
-- **Confiança no cliente:** a importação do save do navegador é o único momento em que a API aceita números do cliente. Acontece uma vez por conta, e a API valida o formato e os limites do save: ids de dinossauro, dificuldade e item, níveis da loja, dificuldade vencida dentro do intervalo, teto de maestria, vitórias ≤ runs e nenhum valor negativo. Fósseis, runs e recordes não têm teto. Num jogo que roda no navegador, nenhuma verificação impede 100% das trapaças. Por isso a API recalcula todas as recompensas e recusa runs inconsistentes; a detecção estatística de runs impossíveis está prevista para a fase 3.
+- **Confiança no cliente:** a importação do save do navegador é o único momento em que a API aceita números do cliente. Acontece uma vez por conta, e a API valida o formato e os limites do save: ids de dinossauro, dificuldade e item, níveis da loja, dificuldade vencida dentro do intervalo, teto de maestria, vitórias ≤ runs e nenhum valor negativo. Fósseis, runs e recordes não têm teto. Num jogo que roda no navegador, nenhuma verificação impede 100% das trapaças. Por isso a API recalcula todas as recompensas e recusa runs inconsistentes; a próxima fase troca isso por **runs com seed**: o servidor entrega uma seed, o jogo envia a seed e os comandos do jogador, e o servidor reproduz a partida para conferir o resultado. Enquanto isso não existe, o ranking público aceita qualquer run consistente, até 4 h de tempo.
 - **Concorrência:** `@Version` no jogador. Duas compras simultâneas sem saldo para ambas resultam em exatamente uma aprovada (existe um teste para isso).
 
 ## Rodando localmente
@@ -71,5 +72,5 @@ Antes do merge na `main`: o jogo importa `shared/economy.json`, que fica fora de
 
 ## Próximas fases
 
-- **Fase 3:** detecção de runs impossíveis (abates por minuto, dano máximo) e ranking por dinossauro e dificuldade.
+- **Fase 3:** antitrapaça com runs por seed (simulação determinística, reproduzida no servidor) para validar o ranking.
 - **Fase 4:** deploy da API, rewrite `/api/*` na Vercel, rate limiting e observabilidade.
