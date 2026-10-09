@@ -1,3 +1,7 @@
+# Hosts such as Render inject the port to listen on.
+server:
+  port: ${PORT:8080}
+
 spring:
   application:
     name: dinomutation-server
