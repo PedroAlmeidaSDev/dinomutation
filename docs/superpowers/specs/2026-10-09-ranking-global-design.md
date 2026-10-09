@@ -25,6 +25,7 @@ Um ranking público dos maiores tempos sobrevividos (o mesmo "Melhor tempo" que 
 - `dino` e `difficulty` são opcionais (ausentes = todos) e usam os ids de sempre. Um id desconhecido responde `400 VALIDATION_ERROR`.
 - `limit` vai de 1 a 50, com padrão 20. Fora disso, `400 VALIDATION_ERROR`.
 - É público (`permitAll`). Se vier `Authorization: Bearer` válido, a resposta inclui `me`.
+- Token inválido ou expirado → `401` (RFC 6750), mesmo na rota pública. O jogo tenta de novo uma vez sem token.
 
 Resposta `200`:
 

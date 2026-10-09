@@ -139,4 +139,11 @@ class LeaderboardApiTest extends IntegrationTest {
 		mvc.perform(get("/api/leaderboard").param("difficulty", "impossivel")).andExpect(status().isBadRequest());
 	}
 
+	@Test
+	void invalidTokenIs401SoTheGameCanRetryAsGuest() throws Exception {
+		// A bad credential is rejected by the resource server even on this public route; the client retries as a guest.
+		mvc.perform(get("/api/leaderboard").header("Authorization", "Bearer nope")).andExpect(status().isUnauthorized());
+		mvc.perform(get("/api/leaderboard")).andExpect(status().isOk());
+	}
+
 }
