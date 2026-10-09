@@ -52,6 +52,14 @@ class AuthRegisterLoginTest extends IntegrationTest {
 	}
 
 	@Test
+	void displayNameIsValidatedAfterTrim() throws Exception {
+		mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON)
+				.content(json("email", "a@example.com", "password", PASSWORD, "displayName", " a ")))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+	}
+
+	@Test
 	void loginWithTheRightPasswordReturnsATokenAndCookie() throws Exception {
 		register("pedro@example.com", PASSWORD, "Pedro");
 		MvcResult result = mvc.perform(post("/api/auth/login").contentType(MediaType.APPLICATION_JSON)

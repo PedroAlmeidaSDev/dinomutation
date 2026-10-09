@@ -35,10 +35,14 @@ public class AuthService {
 		if (req.password().getBytes(StandardCharsets.UTF_8).length > 72) {
 			throw new ApiException(ErrorCode.VALIDATION_ERROR, "A senha pode ter no máximo 72 bytes.");
 		}
+		String displayName = req.displayName().trim();
+		if (displayName.length() < 2 || displayName.length() > 40) {
+			throw new ApiException(ErrorCode.VALIDATION_ERROR, "O nome deve ter de 2 a 40 caracteres.");
+		}
 		if (players.existsByEmail(email)) {
 			throw new ApiException(ErrorCode.EMAIL_TAKEN, "Já existe uma conta com este e-mail.");
 		}
-		Player player = Player.create(email, req.displayName().trim(), clock.instant());
+		Player player = Player.create(email, displayName, clock.instant());
 		player.setPasswordHash(passwords.encode(req.password()));
 		return startSession(players.save(player));
 	}
