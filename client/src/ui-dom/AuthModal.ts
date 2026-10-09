@@ -58,8 +58,10 @@ export class AuthModal {
         ${register ? '<label>Nome<input name="displayName" autocomplete="nickname" maxlength="40" required></label>' : ''}
         <label>E-mail<input name="email" type="email" autocomplete="email" maxlength="254" required></label>
         <label>Senha<input name="password" type="password" autocomplete="${register ? 'new-password' : 'current-password'}" minlength="8" maxlength="72" required></label>
+        ${register ? '<p class="dm-auth__note">Seu nome aparece no ranking público.</p>' : ''}
         <p class="dm-auth__error" role="alert"></p>
         <button type="submit" class="dm-auth__submit">${register ? 'CRIAR CONTA' : 'ENTRAR'}</button>
+        <p class="dm-auth__note">Seu nome aparece no ranking público.</p>
         <div class="dm-auth__google"></div>
         <p class="dm-auth__note">Sem conta, o progresso fica só neste navegador.</p>
       </form>`;

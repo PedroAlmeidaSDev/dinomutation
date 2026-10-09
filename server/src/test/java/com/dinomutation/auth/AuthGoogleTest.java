@@ -55,9 +55,11 @@ class AuthGoogleTest extends IntegrationTest {
 	}
 
 	@Test
-	void blankGoogleNameFallsBackToTheEmail() throws Exception {
+	void blankGoogleNameFallsBackToAnAnonymousHandle() throws Exception {
 		google("valid:g-5:zeca@example.com: ").andExpect(status().isOk());
-		assertThat(jdbc.queryForObject("select display_name from player", String.class)).isEqualTo("zeca");
+		String name = jdbc.queryForObject("select display_name from player", String.class);
+		assertThat(name).matches("Jogador-[A-Z0-9]{4}");
+		assertThat(name).doesNotContain("zeca");
 	}
 
 	@Test

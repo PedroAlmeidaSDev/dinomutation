@@ -5,6 +5,7 @@ import com.dinomutation.common.ErrorCode;
 import com.dinomutation.player.Player;
 import com.dinomutation.player.PlayerRepository;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.Locale;
 import java.util.UUID;
@@ -15,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class AuthService {
+
+	private static final String ANONYMOUS_HANDLE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	private static final SecureRandom ANONYMOUS_HANDLE_RANDOM = new SecureRandom();
 
 	private final PlayerRepository players;
 	private final PasswordEncoder passwords;
@@ -106,21 +110,30 @@ public class AuthService {
 			}
 			return existing;
 		}).orElseGet(() -> {
-			Player created = Player.create(email, displayNameFor(identity, email), clock.instant());
+			Player created = Player.create(email, displayNameFor(identity), clock.instant());
 			created.setGoogleSub(identity.subject());
 			return players.save(created);
 		});
 	}
 
-	private static String displayNameFor(GoogleIdentity identity, String email) {
+	/**
+	 * The Google `name` becomes public (it's shown on the ranking), so it's never replaced with
+	 * anything derived from the e-mail: a missing/too-short name gets a random "Jogador-XXXX" handle.
+	 */
+	private static String displayNameFor(GoogleIdentity identity) {
 		String name = identity.name() == null ? "" : identity.name().trim();
 		if (name.length() < 2) {
-			name = email.substring(0, email.indexOf('@'));
-		}
-		if (name.length() < 2) {
-			name = "Jogador";
+			return anonymousHandle();
 		}
 		return name.length() > 40 ? name.substring(0, 40) : name;
+	}
+
+	private static String anonymousHandle() {
+		StringBuilder suffix = new StringBuilder(4);
+		for (int i = 0; i < 4; i++) {
+			suffix.append(ANONYMOUS_HANDLE_CHARS.charAt(ANONYMOUS_HANDLE_RANDOM.nextInt(ANONYMOUS_HANDLE_CHARS.length())));
+		}
+		return "Jogador-" + suffix;
 	}
 
 	Session startSession(Player player) {
