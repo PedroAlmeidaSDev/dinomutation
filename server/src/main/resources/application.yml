@@ -23,6 +23,8 @@ app:
     client-id: ${GOOGLE_CLIENT_ID:}
   cookie:
     secure: ${COOKIE_SECURE:true}
+  leaderboard:
+    cache-ttl: 30s
 
 management:
   endpoints:

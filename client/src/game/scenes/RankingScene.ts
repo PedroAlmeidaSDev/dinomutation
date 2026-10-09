@@ -23,6 +23,8 @@ export class RankingScene extends Phaser.Scene {
   private dinoLabel!: Phaser.GameObjects.Text;
   private difficultyLabel!: Phaser.GameObjects.Text;
   private content!: Phaser.GameObjects.Container;
+  /** Debounces the fetch while the filter arrows are clicked repeatedly (labels update right away). */
+  private pendingLoad?: Phaser.Time.TimerEvent;
 
   constructor() {
     super('Ranking');
@@ -31,7 +33,8 @@ export class RankingScene extends Phaser.Scene {
   create(): void {
     this.dinoIndex = 0;
     this.difficultyIndex = 0;
-    this.request = 0;
+    // `request` only ever increases: resetting it here would let a stale response from a previous
+    // visit to this scene (still in flight) match the counter again and render over fresh data.
     centerDesign(this, [
       this.add.tileSprite(0, 0, GAME_WIDTH, GAME_HEIGHT, 'ground').setAlpha(0.5),
       this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, COLORS.bg, 0.8),
@@ -41,17 +44,20 @@ export class RankingScene extends Phaser.Scene {
 
     this.dinoLabel = this.selector(GAME_WIDTH / 2 - 230, 140, (dir) => {
       this.dinoIndex = wrap(this.dinoIndex + dir, DINO_FILTER.length);
-      this.loadBoard();
+      this.updateLabels();
+      this.scheduleLoad();
     });
     this.difficultyLabel = this.selector(GAME_WIDTH / 2 + 230, 140, (dir) => {
       this.difficultyIndex = wrap(this.difficultyIndex + dir, DIFFICULTY_FILTER.length);
-      this.loadBoard();
+      this.updateLabels();
+      this.scheduleLoad();
     });
     this.header();
     this.content = this.add.container(0, 0);
 
     button(this, 150, GAME_HEIGHT - 40, 'VOLTAR', () => this.scene.start('Menu'), { width: 200, height: 50, fontSize: 18, ghost: true });
     this.input.keyboard?.once('keydown-ESC', () => this.scene.start('Menu'));
+    this.updateLabels();
     this.loadBoard();
     this.cameras.main.fadeIn(250);
   }
@@ -79,12 +85,23 @@ export class RankingScene extends Phaser.Scene {
     cell(COLS.era, 'ERA');
   }
 
-  /** Named loadBoard (not load): Phaser.Scene already has a public `load` (the LoaderPlugin). */
-  private loadBoard(): void {
+  private updateLabels(): void {
     const dino = DINO_FILTER[this.dinoIndex];
     const difficulty = DIFFICULTY_FILTER[this.difficultyIndex];
     this.dinoLabel.setText(dino ? DINOSAURS[dino].name : 'TODOS OS DINOS');
     this.difficultyLabel.setText(difficulty ? DIFFICULTY_BY_ID[difficulty].name.toUpperCase() : 'TODAS AS DIFICULDADES');
+  }
+
+  /** Cancels any pending fetch and starts a new one 250 ms from now (the labels already changed). */
+  private scheduleLoad(): void {
+    this.pendingLoad?.remove();
+    this.pendingLoad = this.time.delayedCall(250, () => this.loadBoard());
+  }
+
+  /** Named loadBoard (not load): Phaser.Scene already has a public `load` (the LoaderPlugin). */
+  private loadBoard(): void {
+    const dino = DINO_FILTER[this.dinoIndex];
+    const difficulty = DIFFICULTY_FILTER[this.difficultyIndex];
     const request = ++this.request;
     this.showStatus('Carregando…');
     fetchLeaderboard({ dino, difficulty })

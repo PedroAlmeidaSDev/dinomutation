@@ -5,3 +5,5 @@ app:
     client-id: test-client-id
   cookie:
     secure: false
+  leaderboard:
+    cache-ttl: 0s
