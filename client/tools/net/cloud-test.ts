@@ -82,11 +82,12 @@ check((await cloud.purchase('trex', SHOP.trex[0])) === null, 'INSUFFICIENT_FOSSI
 console.log('\n── Run sem conexão ──');
 {
   server.online = false;
+  const accountFossils = cloud.current().fossils;
   const { rewards, pending } = await cloud.recordRun(finishedRun(), false);
   check(pending === true, 'marcada como pendente');
   check(rewards.fossils === 111, 'prévia calculada localmente');
   check(pendingRuns().length === 1 && pendingRuns()[0].email === 'pedro@example.com', 'guardada na fila com a conta');
-  check(cloud.current().fossils === 111, 'o save da conta não muda com a prévia');
+  check(cloud.current().fossils === accountFossils, 'o save da conta não muda com a prévia');
 }
 
 console.log('\n── Reabrir com a API de volta ──');
@@ -107,6 +108,22 @@ console.log('\n── Fila: recusa da API e outra conta ──');
   await CloudSaveStore.open();
   check(pendingRuns().map((p) => p.run.id).join(',') === 'outra', 'run recusada (4xx) descartada; a de outra conta fica');
   server.rejectRuns = false;
+}
+
+console.log('\n── Vitória: bônus já pago em /api/clears aparece no resultado ──');
+{
+  const won = await CloudSaveStore.open();
+  const s = finishedRun();
+  s.bossKilled = true;
+  s.victory = true;
+  const before = won.current().fossils;
+  s.firstClear = await won.recordClear('trex', 'filhote');
+  check(won.current().fossils === before + 60, 'prévia local soma o bônus da 1ª vitória ao saldo');
+  // The fake /api/runs answers like the real one after a clear: firstWinBonus 0, no unlock.
+  const { rewards, pending } = await won.recordRun(s, true);
+  check(!pending && rewards.firstWinBonus === 60, 'tela de resultado mostra o bônus de state.firstClear');
+  check(rewards.unlockedDifficulty === 'Normal', 'e a dificuldade liberada (nome, como no visitante)');
+  check(rewards.fossils === 111 + 60, 'total de Fósseis inclui o bônus');
 }
 
 function pendingRunSample() {

@@ -45,7 +45,7 @@ export class CloudSaveStore implements SaveStore {
     try {
       const res = await api<RunResponse>('/runs', { method: 'POST', body: req });
       this.save = toSaveData(res.save);
-      return { save: this.save, rewards: toRewards(state.dinosaur, res.rewards) };
+      return { save: this.save, rewards: toRewards(state, res.rewards) };
     } catch (e) {
       if (!isRetryable(e)) throw e;
       enqueuePendingRun(this.account.email, req);
@@ -59,10 +59,11 @@ export class CloudSaveStore implements SaveStore {
     try {
       const res = await api<ClearResponse>('/clears', { method: 'POST', body: { dino, difficulty }, keepalive: true });
       if (!res.firstWinBonus) return undefined;
-      // Only the difficulty unlock is mirrored locally; the server is the source of truth for
-      // Fósseis and the next /api/runs or /api/players/me/save echoes the bonus it already paid.
+      // Local preview of what the server just paid (unlock + bonus); every later server
+      // response replaces the whole save, so this can't drift.
       const idx = difficultyIndex(difficulty);
       if (idx > (this.save.cleared[dino] ?? -1)) this.save.cleared[dino] = idx;
+      this.save.fossils += res.firstWinBonus;
       return {
         firstWinBonus: res.firstWinBonus,
         unlockedDifficulty: res.unlockedDifficulty && DIFFICULTY_BY_ID[res.unlockedDifficulty].name,
@@ -125,15 +126,23 @@ function toRunRequest(state: RunState, victory: boolean): RunRequest {
   };
 }
 
-function toRewards(dino: DinoId, r: RunRewardsDto): RunRewards {
+/**
+ * The server's rewards as the result screen shows them. When the boss fell, /api/clears already
+ * paid the first-win bonus, so /api/runs reports 0 for it: the screen shows the clear's bonus
+ * and unlock instead (display only; the save always comes from the server).
+ */
+function toRewards(state: RunState, r: RunRewardsDto): RunRewards {
+  const clear = r.firstWinBonus === 0 ? state.firstClear : undefined;
   return {
-    fossils: r.fossils,
-    firstWinBonus: r.firstWinBonus,
-    unlockedDifficulty: r.unlockedDifficulty && DIFFICULTY_BY_ID[r.unlockedDifficulty].name,
+    fossils: r.fossils + (clear?.firstWinBonus ?? 0),
+    firstWinBonus: clear?.firstWinBonus ?? r.firstWinBonus,
+    unlockedDifficulty: clear
+      ? clear.unlockedDifficulty
+      : r.unlockedDifficulty && DIFFICULTY_BY_ID[r.unlockedDifficulty].name,
     masteryXp: r.masteryXp,
     levelBefore: r.levelBefore,
     levelAfter: r.levelAfter,
-    unlocks: unlocksBetween(dino, r.levelBefore, r.levelAfter),
+    unlocks: unlocksBetween(state.dinosaur, r.levelBefore, r.levelAfter),
   };
 }
 
