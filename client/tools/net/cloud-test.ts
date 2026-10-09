@@ -30,6 +30,8 @@ const json = (status: number, body?: unknown) =>
 const server = {
   online: true,
   rejectRuns: false,
+  /** Answer every /api/runs with this error instead. */
+  runError: null as null | { status: number; code?: string },
   runPosts: 0,
   save: { email: 'pedro@example.com', displayName: 'Pedro', runs: 0, fossils: 0, mastery: {} as Record<string, number> },
 };
@@ -41,9 +43,11 @@ setFetch((async (input: RequestInfo | URL, init: RequestInit = {}) => {
   if (url === '/api/runs') {
     server.runPosts++;
     if (server.rejectRuns) return json(400, { code: 'VALIDATION_ERROR', detail: 'Run inconsistente.' });
+    if (server.runError) return json(server.runError.status, server.runError.code && { code: server.runError.code, detail: 'Erro.' });
     server.save = { ...server.save, runs: server.save.runs + 1, fossils: server.save.fossils + 111, mastery: { trex: 143 } };
     return json(201, { rewards: { fossils: 111, firstWinBonus: 0, masteryXp: 143, levelBefore: 1, levelAfter: 2 }, save: server.save });
   }
+  if (url === '/api/auth/refresh') return json(401, { code: 'INVALID_CREDENTIALS', detail: 'Sessão expirada.' });
   if (url === '/api/clears') return json(200, { firstWinBonus: 60, unlockedDifficulty: 'normal' });
   if (url === '/api/shop/purchases') return json(409, { code: 'INSUFFICIENT_FOSSILS', detail: 'Fósseis insuficientes.' });
   return json(404);
@@ -124,6 +128,39 @@ console.log('\n── Vitória: bônus já pago em /api/clears aparece no result
   check(!pending && rewards.firstWinBonus === 60, 'tela de resultado mostra o bônus de state.firstClear');
   check(rewards.unlockedDifficulty === 'Normal', 'e a dificuldade liberada (nome, como no visitante)');
   check(rewards.fossils === 111 + 60, 'total de Fósseis inclui o bônus');
+}
+
+console.log('\n── Sessão perdida no fim da run ──');
+{
+  const signedIn = await CloudSaveStore.open();
+  server.runError = { status: 401 };
+  const s = finishedRun();
+  const { rewards, pending } = await signedIn.recordRun(s, false);
+  check(pending === true && rewards.fossils === 111, '401 em /api/runs: run guardada (prévia), não descartada');
+  check(pendingRuns().some((p) => p.run.id === s.id && p.email === 'pedro@example.com'), 'na fila da conta que jogou');
+  setAccessToken('t');
+  const before = server.runPosts;
+  await CloudSaveStore.open();
+  check(server.runPosts === before + 1, 'tenta reenviar ao abrir');
+  check(pendingRuns().some((p) => p.run.id === s.id), '401 ao reenviar mantém na fila');
+  server.runError = null;
+  setAccessToken('t');
+  await CloudSaveStore.open();
+  check(!pendingRuns().some((p) => p.run.id === s.id), 'enviada ao entrar de novo');
+}
+
+console.log('\n── 409 CONFLICT é temporário ──');
+{
+  const signedIn = await CloudSaveStore.open();
+  server.runError = { status: 409, code: 'CONFLICT' };
+  const s = finishedRun();
+  const { pending } = await signedIn.recordRun(s, false);
+  check(pending === true && pendingRuns().some((p) => p.run.id === s.id), 'CONFLICT em /api/runs: vai para a fila');
+  await CloudSaveStore.open();
+  check(pendingRuns().some((p) => p.run.id === s.id), 'CONFLICT ao reenviar: continua na fila');
+  server.runError = null;
+  await CloudSaveStore.open();
+  check(!pendingRuns().some((p) => p.run.id === s.id), 'enviada quando o servidor aceita');
 }
 
 function pendingRunSample() {

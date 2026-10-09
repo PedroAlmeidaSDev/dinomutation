@@ -9,7 +9,7 @@ import {
 import type {
   Account, ClearResponse, PurchaseResponse, RunRequest, RunResponse, RunRewardsDto, SaveDto,
 } from './apiTypes';
-import { enqueuePendingRun, flushPendingRuns } from './pendingRuns';
+import { enqueuePendingRun, flushPendingRuns, isQueueable } from './pendingRuns';
 import type { SaveStore } from './SaveStore';
 
 /** API caps (RunRequest on the server). */
@@ -47,7 +47,7 @@ export class CloudSaveStore implements SaveStore {
       this.save = toSaveData(res.save);
       return { save: this.save, rewards: toRewards(state, res.rewards) };
     } catch (e) {
-      if (!isRetryable(e)) throw e;
+      if (!isQueueable(e)) throw e;
       enqueuePendingRun(this.account.email, req);
       // Preview only: the server stays the source of truth and pays when the queue is sent.
       const preview = structuredClone(this.save);
@@ -144,9 +144,4 @@ function toRewards(state: RunState, r: RunRewardsDto): RunRewards {
     levelAfter: r.levelAfter,
     unlocks: unlocksBetween(state.dinosaur, r.levelBefore, r.levelAfter),
   };
-}
-
-/** Network down or a server error: worth queueing. A 4xx means the API refused this run. */
-function isRetryable(e: unknown): boolean {
-  return e instanceof ApiError && (e.offline || e.status >= 500);
 }

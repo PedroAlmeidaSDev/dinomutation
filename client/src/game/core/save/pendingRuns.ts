@@ -31,8 +31,18 @@ export function enqueuePendingRun(email: string, run: RunRequest): void {
 }
 
 /**
+ * A failure worth keeping the run for: network down, a server error, the session lost (the
+ * queue is per account and is sent at the next sign-in) or a CONFLICT (concurrent update on
+ * the server). Any other 4xx means the API refused this run for good.
+ */
+export function isQueueable(e: unknown): boolean {
+  return e instanceof ApiError && (e.offline || e.status >= 500 || e.status === 401 || e.code === 'CONFLICT');
+}
+
+/**
  * Sends the account's queued runs in order (the run id makes a resend harmless). Stops at the
- * first network/5xx failure; drops runs the API rejects (4xx). Returns true if any was accepted.
+ * first queueable failure (see isQueueable); drops runs the API rejects for good. Returns true
+ * if any was accepted.
  */
 export async function flushPendingRuns(email: string): Promise<boolean> {
   let sent = false;
@@ -41,7 +51,7 @@ export async function flushPendingRuns(email: string): Promise<boolean> {
       await api('/runs', { method: 'POST', body: p.run });
       sent = true;
     } catch (e) {
-      if (!(e instanceof ApiError) || e.offline || e.status >= 500 || e.status === 401) return sent;
+      if (!(e instanceof ApiError) || isQueueable(e)) return sent;
       console.warn('Run pendente recusada pela API; descartada.', e);
     }
     write(pendingRuns().filter((x) => x.run.id !== p.run.id));
