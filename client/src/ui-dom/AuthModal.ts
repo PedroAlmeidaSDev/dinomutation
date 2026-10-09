@@ -14,12 +14,15 @@ const MESSAGES: Record<string, string> = {
 
 /**
  * Sign-in / sign-up dialog in HTML over the canvas (Phaser has no text inputs). `onDone`
- * runs after a successful sign-in (and the optional import); `onClose` when dismissed.
+ * runs after a successful sign-in (and the optional import), even if the import step is
+ * dismissed; `onClose` when dismissed before signing in.
  */
 export class AuthModal {
   private readonly root: HTMLDivElement;
   private mode: 'login' | 'register' = 'login';
   private busy = false;
+  /** Set once sign-in succeeded: dismissing the import step must still refresh the menu. */
+  private signedIn = false;
 
   constructor(private readonly onDone: () => void, private readonly onClose: () => void) {
     injectStyles();
@@ -39,7 +42,8 @@ export class AuthModal {
   close(): void {
     if (this.busy) return;
     this.root.remove();
-    this.onClose();
+    if (this.signedIn) this.onDone();
+    else this.onClose();
   }
 
   private renderForm(): void {
@@ -98,6 +102,7 @@ export class AuthModal {
     this.setError('');
     try {
       const result = await action();
+      this.signedIn = true;
       this.setBusy(false);
       if (result.canImport) this.renderImport();
       else this.finish();
