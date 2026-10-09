@@ -8,6 +8,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Locale;
 import java.util.UUID;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,11 +44,21 @@ public class AuthService {
 			throw new ApiException(ErrorCode.VALIDATION_ERROR, "O nome deve ter de 2 a 40 caracteres.");
 		}
 		if (players.existsByEmail(email)) {
-			throw new ApiException(ErrorCode.EMAIL_TAKEN, "Já existe uma conta com este e-mail.");
+			throw emailTaken();
 		}
 		Player player = Player.create(email, displayName, clock.instant());
 		player.setPasswordHash(passwords.encode(req.password()));
-		return startSession(players.save(player));
+		try {
+			// Flush now: a concurrent sign-up with the same e-mail fails here, on the unique constraint.
+			player = players.saveAndFlush(player);
+		} catch (DataIntegrityViolationException e) {
+			throw emailTaken();
+		}
+		return startSession(player);
+	}
+
+	private static ApiException emailTaken() {
+		return new ApiException(ErrorCode.EMAIL_TAKEN, "Já existe uma conta com este e-mail.");
 	}
 
 	@Transactional
