@@ -11,7 +11,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Copies a browser save into an empty account. This is the one place the server trusts the
- * client (once per account), so every value is checked against what the game can produce.
+ * client (once per account), so ids, levels and ranges are checked (fossils, runs and records
+ * have no upper bound).
  */
 @Component
 public class SaveImporter {

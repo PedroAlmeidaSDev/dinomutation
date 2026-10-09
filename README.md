@@ -40,7 +40,7 @@ A documentação interativa fica em `/swagger-ui` quando a API está rodando.
 - **Rotação com detecção de reuso:** cada renovação invalida o refresh token usado. Se um token já usado aparecer de novo, todas as sessões da conta são encerradas.
 - **Mesma origem:** jogo e API ficam no mesmo domínio (rewrite da Vercel e proxy do Vite), então não há CORS para abrir e o cookie é *first-party*.
 - **Account pre-hijacking:** o cadastro com senha não confirma o e-mail. Quando alguém entra com o Google usando o e-mail de uma conta com senha, a conta é ligada ao Google, a senha é removida e as sessões antigas são encerradas: quem prova a posse do e-mail fica com a conta.
-- **Confiança no cliente:** a importação do save do navegador é o único momento em que a API aceita números do cliente. Acontece uma vez por conta e todos os valores são validados contra o que o jogo consegue produzir. Num jogo que roda no navegador, nenhuma verificação impede 100% das trapaças. Por isso a API recalcula todas as recompensas e recusa runs inconsistentes; a detecção estatística de runs impossíveis está prevista para a fase 3.
+- **Confiança no cliente:** a importação do save do navegador é o único momento em que a API aceita números do cliente. Acontece uma vez por conta, e a API valida o formato e os limites do save: ids de dinossauro, dificuldade e item, níveis da loja, dificuldade vencida dentro do intervalo, teto de maestria, vitórias ≤ runs e nenhum valor negativo. Fósseis, runs e recordes não têm teto. Num jogo que roda no navegador, nenhuma verificação impede 100% das trapaças. Por isso a API recalcula todas as recompensas e recusa runs inconsistentes; a detecção estatística de runs impossíveis está prevista para a fase 3.
 - **Concorrência:** `@Version` no jogador. Duas compras simultâneas sem saldo para ambas resultam em exatamente uma aprovada (existe um teste para isso).
 
 ## Rodando localmente
@@ -62,6 +62,10 @@ Para o botão do Google, crie um OAuth Client ID (tipo Web) com a origem `http:/
 cd server && ./mvnw verify     # JUnit + MockMvc + Testcontainers (Postgres real)
 cd client && npm test          # chefe, modo infinito, save, paridade da economia, cliente HTTP e sessão
 ```
+
+## Deploy na Vercel
+
+Antes do merge na `main`: o jogo importa `shared/economy.json`, que fica fora de `client/`. No projeto da Vercel, defina o **Root Directory** como `client` e ative **Include files outside the Root Directory in the Build Step**.
 
 ## Próximas fases
 
