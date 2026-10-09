@@ -32,10 +32,14 @@ public class GlobalExceptionHandler {
 		return problem(ErrorCode.VALIDATION_ERROR, "Dados inválidos.", errors);
 	}
 
-	@ExceptionHandler({ HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
-			HandlerMethodValidationException.class })
-	ResponseEntity<ProblemDetail> unreadable(Exception e) {
+	@ExceptionHandler(HttpMessageNotReadableException.class)
+	ResponseEntity<ProblemDetail> unreadable(HttpMessageNotReadableException e) {
 		return problem(ErrorCode.VALIDATION_ERROR, "Corpo da requisição inválido.", null);
+	}
+
+	@ExceptionHandler({ HandlerMethodValidationException.class, MethodArgumentTypeMismatchException.class })
+	ResponseEntity<ProblemDetail> invalidParameters(Exception e) {
+		return problem(ErrorCode.VALIDATION_ERROR, "Parâmetros inválidos.", null);
 	}
 
 	@ExceptionHandler({ ObjectOptimisticLockingFailureException.class, DataIntegrityViolationException.class })

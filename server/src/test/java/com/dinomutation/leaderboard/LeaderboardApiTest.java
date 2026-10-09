@@ -132,11 +132,45 @@ class LeaderboardApiTest extends IntegrationTest {
 	@Test
 	void invalidParametersAre400() throws Exception {
 		mvc.perform(get("/api/leaderboard").param("limit", "0"))
-				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.detail").value("Parâmetros inválidos."));
 		mvc.perform(get("/api/leaderboard").param("limit", "51")).andExpect(status().isBadRequest());
 		mvc.perform(get("/api/leaderboard").param("dino", "stego"))
 				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"));
 		mvc.perform(get("/api/leaderboard").param("difficulty", "impossivel")).andExpect(status().isBadRequest());
+		mvc.perform(get("/api/leaderboard").param("limit", "abc"))
+				.andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+				.andExpect(jsonPath("$.detail").value("Parâmetros inválidos."));
+	}
+
+	@Test
+	void filtersApplyToMeToo() throws Exception {
+		Account ana = account("Ana");
+		run(ana, "trex", "filhote", 500, 0, "2026-10-01T10:00:00Z");
+
+		mvc.perform(get("/api/leaderboard").param("dino", "raptor").header("Authorization", bearer(ana.token())))
+				.andExpect(status().isOk()).andExpect(jsonPath("$.me").doesNotExist());
+		mvc.perform(get("/api/leaderboard").param("dino", "trex").header("Authorization", bearer(ana.token())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.me.displayName").value("Ana"))
+				.andExpect(jsonPath("$.me.elapsedTime").value(500.0));
+	}
+
+	@Test
+	void meMatchesTheOwnEntryWhenAlreadyInsideTheTopN() throws Exception {
+		Account ana = account("Ana");
+		Account bia = account("Bia");
+		run(ana, "trex", "filhote", 2000, 0, "2026-10-01T10:00:00Z");
+		run(bia, "trex", "filhote", 1000, 0, "2026-10-01T10:00:00Z");
+
+		mvc.perform(get("/api/leaderboard").header("Authorization", bearer(ana.token())))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.me.rank").value(1))
+				.andExpect(jsonPath("$.me.displayName").value("Ana"))
+				.andExpect(jsonPath("$.me.elapsedTime").value(2000.0))
+				.andExpect(jsonPath("$.entries[0].rank").value(1))
+				.andExpect(jsonPath("$.entries[0].displayName").value("Ana"))
+				.andExpect(jsonPath("$.entries[0].elapsedTime").value(2000.0));
 	}
 
 	@Test
