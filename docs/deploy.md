@@ -156,6 +156,9 @@ Em <https://dinomutation.vercel.app/>, numa janela anônima:
 5. **Recarregue a página:** a sessão volta sozinha (cookie de renovação) e o progresso é o da nuvem.
 6. **Sair** e **entrar com Google** usando o mesmo e-mail: a conta é a mesma (o Google passa a ser o login e a senha é removida; veja "Decisões de segurança" no README).
 7. Abra noutro navegador ou celular e entre na mesma conta: o progresso aparece lá.
+8. **RANKING** como visitante: abra a tela e circule os filtros de dino e dificuldade (as setas); a lista atualiza sem travar.
+9. **Entre na conta** e volte ao RANKING: a sua linha aparece destacada (ou aparece abaixo de um separador, se estiver fora do top exibido).
+10. Com `VITE_API_ENABLED=false`, o botão de RANKING não aparece no menu.
 
 ## Voltar atrás
 

@@ -21,7 +21,7 @@ navegador ──► Vercel (jogo estático) ──► /api/* (rewrite) ──►
                  └──────────── shared/economy.json ──────────────┘
 ```
 
-A API é um monólito organizado por funcionalidade (`auth`, `player`, `run`, `shop`, `economy`). O jogo fala com a persistência por uma interface (`SaveStore`) com duas implementações: `LocalSaveStore` (visitante) e `CloudSaveStore` (conta).
+A API é um monólito organizado por funcionalidade (`auth`, `player`, `run`, `shop`, `economy`, `leaderboard`). O jogo fala com a persistência por uma interface (`SaveStore`) com duas implementações: `LocalSaveStore` (visitante) e `CloudSaveStore` (conta).
 
 | Endpoint | O que faz |
 |---|---|
@@ -31,7 +31,7 @@ A API é um monólito organizado por funcionalidade (`auth`, `player`, `run`, `s
 | `POST /api/runs` | Registra uma run; o servidor calcula Fósseis e maestria (idempotente pelo id da run) |
 | `POST /api/clears` | Vitória no chefe: libera a próxima dificuldade e paga o bônus uma vez |
 | `POST /api/shop/purchases` | Compra no Covil (saldo conferido e debitado na mesma transação) |
-| `GET /api/leaderboard` | Ranking público dos maiores tempos sobrevividos: uma linha por jogador, filtros por dino e dificuldade, consulta com `DISTINCT ON` + `RANK()`. Com token, inclui a sua posição |
+| `GET /api/leaderboard` | Ranking público dos maiores tempos sobrevividos: uma linha por jogador, filtros por dino e dificuldade, consulta com `DISTINCT ON` + `RANK()`. Com token, inclui a sua posição. Runs importadas do save do navegador não entram no ranking (só contam as runs enviadas ao servidor), então o "Melhor tempo" do menu pode ser maior que o tempo no ranking |
 
 A documentação interativa fica em `/swagger-ui` quando a API está rodando.
 
@@ -73,4 +73,4 @@ Antes do merge na `main`: o jogo importa `shared/economy.json`, que fica fora de
 ## Próximas fases
 
 - **Fase 3:** antitrapaça com runs por seed (simulação determinística, reproduzida no servidor) para validar o ranking.
-- **Fase 4:** deploy da API, rewrite `/api/*` na Vercel, rate limiting e observabilidade.
+- **Fase 4:** deploy da API, rewrite `/api/*` na Vercel, rate limiting e observabilidade. A consulta do ranking varre a tabela `run` inteira (sem índice que dê o melhor tempo por jogador direto); por ora ela é cacheada por 30 s (`app.leaderboard.cache-ttl`). Uma tabela `player_best` (ou materialized view) e rate limiting na rota pública vêm junto com o trabalho de deploy.
