@@ -61,7 +61,12 @@ export class MenuScene extends Phaser.Scene {
       : 'Escolha um dinossauro, sobreviva, mute e derrote o Giganotosaurus.';
     text(this, GAME_WIDTH / 2, 526, info, 15, COLORS.muted).setOrigin(0.5).setDepth(1);
     if (save.fossils > 0) text(this, GAME_WIDTH / 2, 552, `${save.fossils} FÓSSEIS`, 16, COLORS.acidText, true).setOrigin(0.5).setDepth(1).setLetterSpacing(2);
-    if (API_ENABLED) this.accountButton();
+    if (API_ENABLED) {
+      button(this, GAME_WIDTH / 2 - 155, 604, 'RANKING', () => this.openRanking(), {
+        width: 290, height: 40, fontSize: 14, ghost: true, color: COLORS.acid,
+      }).setDepth(1);
+      this.accountButton();
+    }
 
     text(this, GAME_WIDTH / 2, GAME_HEIGHT - 44, prefersTouch()
       ? 'Arraste o dedo: mover   ·   Ataque automático   ·   Botão à direita: habilidade   ·   ❚❚: pausa'
@@ -100,9 +105,15 @@ export class MenuScene extends Phaser.Scene {
     const account = currentAccount();
     const name = account ? account.displayName.toUpperCase().slice(0, 18) : '';
     const label = account ? `${name} · SAIR` : 'ENTRAR / CRIAR CONTA';
-    button(this, GAME_WIDTH / 2, 604, label, () => (account ? void this.leaveAccount() : this.openAuth()), {
-      width: 300, height: 40, fontSize: 14, ghost: true,
+    button(this, GAME_WIDTH / 2 + 155, 604, label, () => (account ? void this.leaveAccount() : this.openAuth()), {
+      width: 290, height: 40, fontSize: 14, ghost: true,
     }).setDepth(1);
+  }
+
+  private openRanking(): void {
+    if (this.modal || this.leaving) return;
+    this.leaving = true;
+    this.scene.start('Ranking');
   }
 
   private openAuth(): void {

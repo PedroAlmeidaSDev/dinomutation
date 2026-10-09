@@ -5,6 +5,7 @@ import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { HUDScene } from './scenes/HUDScene';
 import { LairScene } from './scenes/LairScene';
 import { MenuScene } from './scenes/MenuScene';
+import { RankingScene } from './scenes/RankingScene';
 import { GameOverScene, VictoryScene } from './scenes/ResultScene';
 import { RunScene } from './scenes/RunScene';
 
@@ -25,6 +26,6 @@ export function createGame(parent: string): Phaser.Game {
     input: { activePointers: 3 },
     render: { antialias: true, pixelArt: false },
     fps: { target: 60 },
-    scene: [BootScene, MenuScene, LairScene, CharacterSelectScene, RunScene, HUDScene, GameOverScene, VictoryScene],
+    scene: [BootScene, MenuScene, LairScene, RankingScene, CharacterSelectScene, RunScene, HUDScene, GameOverScene, VictoryScene],
   });
 }
