@@ -3,6 +3,7 @@ package com.dinomutation;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.dinomutation.auth.FakeGoogleTokenVerifier;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
@@ -25,7 +26,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestcontainersConfiguration.class)
+@Import({ TestcontainersConfiguration.class, FakeGoogleTokenVerifier.Config.class })
 public abstract class IntegrationTest {
 
 	protected static final String PASSWORD = "senha-forte-123";

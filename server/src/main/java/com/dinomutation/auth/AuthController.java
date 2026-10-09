@@ -32,6 +32,11 @@ public class AuthController {
 		return respond(HttpStatus.OK, auth.login(req));
 	}
 
+	@PostMapping("/google")
+	public ResponseEntity<TokenResponse> google(@Valid @RequestBody GoogleLoginRequest req) {
+		return respond(HttpStatus.OK, auth.google(req));
+	}
+
 	@PostMapping("/refresh")
 	public ResponseEntity<TokenResponse> refresh(
 			@CookieValue(name = RefreshCookies.NAME, required = false) String refreshToken) {

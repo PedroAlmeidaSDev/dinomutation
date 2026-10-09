@@ -20,14 +20,16 @@ public class AuthService {
 	private final AccessTokenService accessTokens;
 	private final RefreshTokenService refreshTokens;
 	private final Clock clock;
+	private final GoogleTokenVerifier google;
 
 	public AuthService(PlayerRepository players, PasswordEncoder passwords, AccessTokenService accessTokens,
-			RefreshTokenService refreshTokens, Clock clock) {
+			RefreshTokenService refreshTokens, Clock clock, GoogleTokenVerifier google) {
 		this.players = players;
 		this.passwords = passwords;
 		this.accessTokens = accessTokens;
 		this.refreshTokens = refreshTokens;
 		this.clock = clock;
+		this.google = google;
 	}
 
 	@Transactional
@@ -65,6 +67,49 @@ public class AuthService {
 
 	public void logout(String refreshToken) {
 		refreshTokens.revoke(refreshToken);
+	}
+
+	@Transactional
+	public Session google(GoogleLoginRequest req) {
+		GoogleIdentity identity = google.verify(req.idToken());
+		String email = normalizeEmail(identity.email());
+		Player player = players.findByGoogleSub(identity.subject()).orElseGet(() -> linkOrCreate(identity, email));
+		return startSession(player);
+	}
+
+	/**
+	 * Same e-mail as an existing account. Google proves the e-mail belongs to this person;
+	 * our sign-up doesn't (no e-mail confirmation), so a password on that account may have
+	 * been set by someone else (account pre-hijacking). Link the account, drop its password
+	 * and end its sessions.
+	 */
+	private Player linkOrCreate(GoogleIdentity identity, String email) {
+		return players.findByEmail(email).map(existing -> {
+			if (existing.getGoogleSub() != null) {
+				throw new ApiException(ErrorCode.CONFLICT, "Este e-mail já está ligado a outra conta Google.");
+			}
+			existing.setGoogleSub(identity.subject());
+			if (existing.getPasswordHash() != null) {
+				existing.setPasswordHash(null);
+				refreshTokens.revokeAll(existing.getId());
+			}
+			return existing;
+		}).orElseGet(() -> {
+			Player created = Player.create(email, displayNameFor(identity, email), clock.instant());
+			created.setGoogleSub(identity.subject());
+			return players.save(created);
+		});
+	}
+
+	private static String displayNameFor(GoogleIdentity identity, String email) {
+		String name = identity.name() == null ? "" : identity.name().trim();
+		if (name.length() < 2) {
+			name = email.substring(0, email.indexOf('@'));
+		}
+		if (name.length() < 2) {
+			name = "Jogador";
+		}
+		return name.length() > 40 ? name.substring(0, 40) : name;
 	}
 
 	Session startSession(Player player) {
