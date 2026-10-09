@@ -1,12 +1,15 @@
 package com.dinomutation.auth;
 
+import com.dinomutation.common.ApiException;
 import com.dinomutation.common.AppProperties;
+import com.dinomutation.common.ErrorCode;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
@@ -36,6 +39,46 @@ public class RefreshTokenService {
 		String value = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 		tokens.save(new RefreshToken(playerId, hash(value), clock.instant(), ttl));
 		return value;
+	}
+
+	/**
+	 * Validates and spends a refresh token, returning its player. A token that was already
+	 * rotated means someone copied it: every session of that player is revoked. The revocation
+	 * must survive the 401, hence noRollbackFor (callers in a transaction need it too).
+	 */
+	@Transactional(noRollbackFor = ApiException.class)
+	public UUID consume(String value) {
+		if (value == null || value.isBlank()) {
+			throw invalid();
+		}
+		RefreshToken token = tokens.findByTokenHash(hash(value)).orElseThrow(RefreshTokenService::invalid);
+		Instant now = clock.instant();
+		if (token.isRevoked()) {
+			tokens.revokeAllForPlayer(token.getPlayerId(), now);
+			throw invalid();
+		}
+		if (token.isExpired(now)) {
+			throw invalid();
+		}
+		token.revoke(now);
+		return token.getPlayerId();
+	}
+
+	@Transactional
+	public void revoke(String value) {
+		if (value == null || value.isBlank()) {
+			return;
+		}
+		tokens.findByTokenHash(hash(value)).filter(t -> !t.isRevoked()).ifPresent(t -> t.revoke(clock.instant()));
+	}
+
+	@Transactional
+	public void revokeAll(UUID playerId) {
+		tokens.revokeAllForPlayer(playerId, clock.instant());
+	}
+
+	private static ApiException invalid() {
+		return new ApiException(ErrorCode.INVALID_CREDENTIALS, "Sessão expirada; entre de novo.");
 	}
 
 	static String hash(String value) {

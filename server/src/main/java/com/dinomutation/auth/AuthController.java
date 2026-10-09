@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +30,18 @@ public class AuthController {
 	@PostMapping("/login")
 	public ResponseEntity<TokenResponse> login(@Valid @RequestBody LoginRequest req) {
 		return respond(HttpStatus.OK, auth.login(req));
+	}
+
+	@PostMapping("/refresh")
+	public ResponseEntity<TokenResponse> refresh(
+			@CookieValue(name = RefreshCookies.NAME, required = false) String refreshToken) {
+		return respond(HttpStatus.OK, auth.refresh(refreshToken));
+	}
+
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout(@CookieValue(name = RefreshCookies.NAME, required = false) String refreshToken) {
+		auth.logout(refreshToken);
+		return ResponseEntity.noContent().header(HttpHeaders.SET_COOKIE, cookies.clear().toString()).build();
 	}
 
 	private ResponseEntity<TokenResponse> respond(HttpStatus status, Session session) {

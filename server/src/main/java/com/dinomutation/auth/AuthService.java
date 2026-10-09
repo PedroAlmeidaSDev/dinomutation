@@ -7,6 +7,7 @@ import com.dinomutation.player.PlayerRepository;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,17 @@ public class AuthService {
 				.filter(p -> p.getPasswordHash() != null && passwords.matches(req.password(), p.getPasswordHash()))
 				.orElseThrow(AuthService::invalidCredentials);
 		return startSession(player);
+	}
+
+	/** Same noRollbackFor as consume(): this transaction wraps it and must keep the reuse revocation. */
+	@Transactional(noRollbackFor = ApiException.class)
+	public Session refresh(String refreshToken) {
+		UUID playerId = refreshTokens.consume(refreshToken);
+		return startSession(players.getRequired(playerId));
+	}
+
+	public void logout(String refreshToken) {
+		refreshTokens.revoke(refreshToken);
 	}
 
 	Session startSession(Player player) {
