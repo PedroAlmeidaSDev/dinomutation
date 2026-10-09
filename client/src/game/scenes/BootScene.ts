@@ -1,8 +1,7 @@
 import Phaser from 'phaser';
 import { API_ENABLED } from '../../net/env';
 import { generateTextures, loadSprites } from '../art/Textures';
-import { LocalSaveStore } from '../core/save/LocalSaveStore';
-import { setSaveStore } from '../core/save/SaveStore';
+import { saveStore, setSaveStore } from '../core/save/SaveStore';
 import { hasLoginFlag, resumeSession } from '../core/save/session';
 import { COLORS, button, text } from '../ui/theme';
 
@@ -42,10 +41,12 @@ export class BootScene extends Phaser.Scene {
       button(this, width / 2, height / 2 + 70, 'JOGAR COMO VISITANTE', go, { width: 340, height: 54, fontSize: 18, ghost: true });
     });
     const attempt = async (): Promise<void> => {
+      const before = saveStore();
       const result = await resumeSession();
       if (done) {
-        // The player already chose to go on as a guest: don't swap the save mid-game.
-        if (result === 'cloud') setSaveStore(new LocalSaveStore());
+        // The player already chose to go on as a guest: don't swap the save mid-game. If they
+        // signed in meanwhile, resumeSession left their session alone ('superseded').
+        if (result === 'cloud') setSaveStore(before);
         return;
       }
       if (result === 'offline') {

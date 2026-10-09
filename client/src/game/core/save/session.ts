@@ -8,7 +8,8 @@ import { saveStore, setSaveStore } from './SaveStore';
 /** The refresh cookie is httpOnly, so this flag is how the game knows a session may exist. */
 const FLAG = 'dino-logged-in';
 
-export type ResumeResult = 'cloud' | 'guest' | 'offline';
+/** 'superseded': the store changed while resuming (the player signed in meanwhile); nothing was touched. */
+export type ResumeResult = 'cloud' | 'guest' | 'offline' | 'superseded';
 
 export interface SignInResult {
   account: Account;
@@ -19,16 +20,24 @@ export interface SignInResult {
 /** On boot: picks up the session of the last visit, if there was one. */
 export async function resumeSession(enabled = API_ENABLED): Promise<ResumeResult> {
   if (!enabled || !hasLoginFlag()) return 'guest';
+  // A slow API lets the player go on as a guest and sign in meanwhile: a late answer must not
+  // replace (or end) that newer session.
+  const initial = saveStore();
+  const superseded = () => saveStore() !== initial;
   const refreshed = await refreshSession();
+  if (superseded()) return 'superseded';
   if (refreshed === 'expired') {
     endLocalSession();
     return 'guest';
   }
   if (refreshed === 'offline') return 'offline';
   try {
-    setSaveStore(await CloudSaveStore.open());
+    const cloud = await CloudSaveStore.open();
+    if (superseded()) return 'superseded';
+    setSaveStore(cloud);
     return 'cloud';
   } catch (e) {
+    if (superseded()) return 'superseded';
     if (e instanceof ApiError && (e.offline || e.status >= 500)) return 'offline';
     endLocalSession();
     return 'guest';

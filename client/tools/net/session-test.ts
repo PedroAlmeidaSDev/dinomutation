@@ -3,9 +3,9 @@
  *
  * Uso: npm run test:net
  */
-import { saveStore } from '../../src/game/core/save/SaveStore.ts';
+import { saveStore, setSaveStore } from '../../src/game/core/save/SaveStore.ts';
 import { hasLoginFlag, importGuestSave, resumeSession, signIn, signOut } from '../../src/game/core/save/session.ts';
-import { writeLocalSave } from '../../src/game/core/save/LocalSaveStore.ts';
+import { LocalSaveStore, writeLocalSave } from '../../src/game/core/save/LocalSaveStore.ts';
 import { emptySave } from '../../src/game/core/Save.ts';
 import { api, setFetch } from '../../src/net/api.ts';
 
@@ -29,10 +29,13 @@ let saveStatus = 200;
 let importStatus: 200 | 409 = 200;
 let imported: unknown = null;
 let fetchCalls = 0;
+/** While set, /api/auth/refresh waits for it (a slow, cold-starting API). */
+let refreshGate: Promise<void> | null = null;
 const account = { email: 'pedro@example.com', displayName: 'Pedro', runs: 0, fossils: 0 };
 setFetch((async (input: RequestInfo | URL, init: RequestInit = {}) => {
   fetchCalls++;
   const url = String(input);
+  if (url === '/api/auth/refresh' && refreshGate) await refreshGate;
   if (url === '/api/auth/refresh') return refreshStatus === 200 ? json(200, { accessToken: 'r', expiresIn: 900 }) : json(refreshStatus);
   if (url === '/api/auth/login') return json(200, { accessToken: 'l', expiresIn: 900 });
   if (url === '/api/auth/logout') return json(204);
@@ -97,6 +100,36 @@ console.log('\n── Sessão perdida no meio do jogo ──');
   check(saveStore().kind === 'local' && !hasLoginFlag(), 'chamada autenticada e refresh recusados: volta ao visitante e apaga a marca');
   saveStatus = 200;
   refreshStatus = 200;
+}
+
+console.log('\n── Retomada lenta não sobrescreve um login feito no meio ──');
+{
+  // Boot is still resuming the last session; the player went on as a guest and signed in.
+  store.set('dino-logged-in', '1');
+  setSaveStore(new LocalSaveStore());
+  let release!: () => void;
+  refreshGate = new Promise((r) => (release = r));
+  const resuming = resumeSession(true);
+  await signIn.password('pedro@example.com', 'senha-forte-123');
+  const fresh = saveStore();
+  release();
+  const result = await resuming;
+  refreshGate = null;
+  check(result === 'superseded', 'a retomada percebe que foi ultrapassada');
+  check(saveStore() === fresh && hasLoginFlag(), 'o login novo continua ativo');
+
+  // Same race, but the old session had expired: the fresh login's flag must survive.
+  setSaveStore(new LocalSaveStore());
+  refreshStatus = 401;
+  refreshGate = new Promise((r) => (release = r));
+  const expiring = resumeSession(true);
+  await signIn.password('pedro@example.com', 'senha-forte-123');
+  const fresh2 = saveStore();
+  release();
+  await expiring;
+  refreshGate = null;
+  refreshStatus = 200;
+  check(saveStore() === fresh2 && hasLoginFlag(), 'refresh recusado tarde não derruba o login novo');
 }
 
 console.log('\n── Sair ──');
