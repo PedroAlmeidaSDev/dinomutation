@@ -201,6 +201,14 @@ export class LairScene extends Phaser.Scene {
     this.buying = false;
     if (!this.sys.isActive()) return;
     if (!updated) {
+      // Refused: the store's copy may be fresher than ours (the account bought it elsewhere).
+      const latest = saveStore().current();
+      if (purchaseStatus(latest, this.dino, item) === 'maxed') {
+        this.save = latest;
+        this.render();
+        this.floatText(x, y - 34, 'Nível máximo', COLORS.acidText, 14);
+        return;
+      }
       this.floatText(x, y - 34, 'Fósseis insuficientes', COLORS.danger, 14);
       return;
     }

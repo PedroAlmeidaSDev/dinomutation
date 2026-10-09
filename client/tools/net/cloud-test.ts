@@ -5,6 +5,7 @@
  * Uso: npm run test:net
  */
 import { createRunState } from '../../src/game/core/RunState.ts';
+import { purchaseStatus } from '../../src/game/core/Save.ts';
 import { CloudSaveStore } from '../../src/game/core/save/CloudSaveStore.ts';
 import { enqueuePendingRun, pendingRuns } from '../../src/game/core/save/pendingRuns.ts';
 import { SHOP } from '../../src/data/meta.ts';
@@ -32,6 +33,7 @@ const server = {
   rejectRuns: false,
   /** Answer every /api/runs with this error instead. */
   runError: null as null | { status: number; code?: string },
+  shopError: 'INSUFFICIENT_FOSSILS',
   runPosts: 0,
   save: { email: 'pedro@example.com', displayName: 'Pedro', runs: 0, fossils: 0, mastery: {} as Record<string, number> },
 };
@@ -49,7 +51,7 @@ setFetch((async (input: RequestInfo | URL, init: RequestInit = {}) => {
   }
   if (url === '/api/auth/refresh') return json(401, { code: 'INVALID_CREDENTIALS', detail: 'Sessão expirada.' });
   if (url === '/api/clears') return json(200, { firstWinBonus: 60, unlockedDifficulty: 'normal' });
-  if (url === '/api/shop/purchases') return json(409, { code: 'INSUFFICIENT_FOSSILS', detail: 'Fósseis insuficientes.' });
+  if (url === '/api/shop/purchases') return json(409, { code: server.shopError, detail: 'Compra recusada.' });
   return json(404);
 }) as typeof fetch);
 
@@ -161,6 +163,16 @@ console.log('\n── 409 CONFLICT é temporário ──');
   server.runError = null;
   await CloudSaveStore.open();
   check(!pendingRuns().some((p) => p.run.id === s.id), 'enviada quando o servidor aceita');
+}
+
+console.log('\n── Compra de item já no máximo (outra aba comprou) ──');
+{
+  const item = SHOP.trex[0];
+  const shopper = await CloudSaveStore.open();
+  server.shopError = 'ITEM_MAXED';
+  server.save = { ...server.save, shop: { trex: { [item.id]: item.costs.length } } } as typeof server.save;
+  check((await shopper.purchase('trex', item)) === null, 'ITEM_MAXED → null');
+  check(purchaseStatus(shopper.current(), 'trex', item) === 'maxed', 'save recarregado: o Covil mostra o item no máximo');
 }
 
 function pendingRunSample() {

@@ -80,7 +80,16 @@ export class CloudSaveStore implements SaveStore {
       this.save = toSaveData(res.save);
       return this.save;
     } catch (e) {
-      if (e instanceof ApiError && (e.code === 'INSUFFICIENT_FOSSILS' || e.code === 'ITEM_MAXED')) return null;
+      if (e instanceof ApiError && e.code === 'ITEM_MAXED') {
+        // Our copy is stale (bought elsewhere): reload it so the shop shows the item as maxed.
+        try {
+          this.save = toSaveData(await api<SaveDto>('/players/me/save'));
+        } catch {
+          // keep the stale copy; the purchase is refused either way
+        }
+        return null;
+      }
+      if (e instanceof ApiError && e.code === 'INSUFFICIENT_FOSSILS') return null;
       throw e;
     }
   }
