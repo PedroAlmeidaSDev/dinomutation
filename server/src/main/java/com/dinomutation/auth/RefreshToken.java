@@ -41,6 +41,10 @@ public class RefreshToken {
 		this.expiresAt = now.plus(ttl);
 	}
 
+	public UUID getId() {
+		return id;
+	}
+
 	public UUID getPlayerId() {
 		return playerId;
 	}

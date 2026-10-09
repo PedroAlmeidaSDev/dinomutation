@@ -60,7 +60,11 @@ public class RefreshTokenService {
 		if (token.isExpired(now)) {
 			throw invalid();
 		}
-		token.revoke(now);
+		// Atomic spend: if a concurrent request got there first, this is a reuse too.
+		if (tokens.markRevokedIfActive(token.getId(), now) == 0) {
+			tokens.revokeAllForPlayer(token.getPlayerId(), now);
+			throw invalid();
+		}
 		return token.getPlayerId();
 	}
 
