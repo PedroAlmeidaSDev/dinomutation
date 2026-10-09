@@ -5,13 +5,21 @@ import type { DifficultyId } from '../../data/difficulty';
 import type { DinoId } from '../../data/dinosaurs';
 import { DEBUG } from '../config';
 import { Run } from '../core/Run';
-import { saveStore } from '../core/save/SaveStore';
+import type { RunState } from '../core/RunState';
+import { saveStore, type SaveStore } from '../core/save/SaveStore';
 import { prefersTouch } from '../ui/TouchControls';
 import type { HUDScene } from './HUDScene';
 
 export interface RunSceneData {
   dino: DinoId;
   difficulty?: DifficultyId;
+}
+
+/** What the result screens (Victory / GameOver) receive. */
+export interface ResultSceneData {
+  state: RunState;
+  /** The store the run started with, so the session ending mid-run can't switch where it's saved. */
+  store: SaveStore;
 }
 
 /**
@@ -33,6 +41,7 @@ export class RunScene extends Phaser.Scene {
   private timeScale = 1;
   private dino: DinoId = 'trex';
   private difficulty: DifficultyId = 'normal';
+  private store!: SaveStore;
 
   constructor() {
     super('Run');
@@ -49,6 +58,7 @@ export class RunScene extends Phaser.Scene {
     this.endTimer = -1;
     this.timeScale = 1;
     this.rerolls = BALANCE.upgrades.rerollsPerRun;
+    this.store = saveStore();
 
     this.buildArena();
     this.run = new Run(this, this.dino, this.difficulty);
@@ -71,7 +81,7 @@ export class RunScene extends Phaser.Scene {
     this.run.bus.on('storyBossDefeated', () => {
       // Save the win now: the player may go endless and quit without seeing the result screen.
       const state = this.run.run;
-      void saveStore().recordClear(state.dinosaur, state.difficulty)
+      void this.store.recordClear(state.dinosaur, state.difficulty)
         .then((clear) => { state.firstClear = clear; })
         .catch(() => undefined);
       this.victoryPending = true;
@@ -131,7 +141,7 @@ export class RunScene extends Phaser.Scene {
   /** After a win (quitting the endless mode) the result screen still records the run's rewards. */
   private quitToMenu(): void {
     this.scene.stop('HUD');
-    if (this.run.run.victory) this.scene.start('Victory', { state: this.run.run });
+    if (this.run.run.victory) this.scene.start('Victory', { state: this.run.run, store: this.store } satisfies ResultSceneData);
     else this.scene.start('Menu');
   }
 
@@ -241,7 +251,7 @@ export class RunScene extends Phaser.Scene {
       this.cameras.main.fadeOut(500);
       this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
         this.scene.stop('HUD');
-        this.scene.start(this.run.outcome === 'victory' ? 'Victory' : 'GameOver', { state });
+        this.scene.start(this.run.outcome === 'victory' ? 'Victory' : 'GameOver', { state, store: this.store } satisfies ResultSceneData);
       });
     }
   }

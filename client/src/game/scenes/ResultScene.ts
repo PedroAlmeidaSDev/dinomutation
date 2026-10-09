@@ -4,7 +4,6 @@ import { DINOSAURS } from '../../data/dinosaurs';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config';
 import type { RunState } from '../core/RunState';
 import type { RunRewards } from '../core/Save';
-import { saveStore } from '../core/save/SaveStore';
 import { masteryProgress } from '../../data/meta';
 import { formatTime } from '../../utils/math';
 import { centerDesign } from '../ui/layout';
@@ -12,6 +11,7 @@ import { COLORS, RARITY_COLORS, button, drawBar, drawPanel, hex, text, title as 
 import type { Rarity } from '../../data/balance';
 import { damageBreakdown, type DamageRow } from '../../data/damageSources';
 import { CURRENT_PATCH } from '../../data/patchNotes';
+import type { ResultSceneData } from './RunScene';
 
 const PANEL = { x: 600, y: 170, w: 530, h: 350 };
 const MAX_DAMAGE_ROWS = 10;
@@ -20,7 +20,7 @@ const MAX_DAMAGE_ROWS = 10;
 export abstract class ResultScene extends Phaser.Scene {
   protected abstract readonly victory: boolean;
 
-  create(data: { state: RunState }): void {
+  create(data: ResultSceneData): void {
     const s = data.state;
     const dino = DINOSAURS[s.dinosaur];
 
@@ -84,13 +84,14 @@ export abstract class ResultScene extends Phaser.Scene {
 
     const saving = text(this, GAME_WIDTH / 2, 566, 'Salvando…', 16, COLORS.muted, true).setOrigin(0.5);
     // s.victory: the story boss died (a death later in the endless mode still counts as a win).
-    saveStore().recordRun(s, s.victory).then(({ save, rewards, pending }) => {
+    // The run's own store: if the session was lost mid-run this is still the account's.
+    data.store.recordRun(s, s.victory).then(({ save, rewards, pending }) => {
       if (!this.sys.isActive()) return;
       saving.destroy();
       bestValue.setText(s.endless ? `${save.bestEraByDino[s.dinosaur] ?? s.era}` : formatTime(save.bestTime));
       this.drawRewards(s.dinosaur, save.mastery[s.dinosaur] ?? 0, rewards);
       if (pending) {
-        text(this, GAME_WIDTH / 2, 150, 'Sem conexão: a run foi guardada e será enviada quando o jogo abrir de novo.', 13, COLORS.danger, true)
+        text(this, GAME_WIDTH / 2, 150, 'Não foi possível salvar agora; a run foi guardada e será enviada na próxima vez que você entrar na conta.', 13, COLORS.danger, true)
           .setOrigin(0.5);
       }
     }).catch(() => {
