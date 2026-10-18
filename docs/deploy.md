@@ -37,6 +37,8 @@ A ordem importa: banco → Google → API → jogo. Até o passo 5, o jogo em pr
 
 Não precisa criar tabelas: o Flyway roda as migrations (`server/src/main/resources/db/migration`) no schema `public` quando a API sobe. A API acessa o banco direto pelo JDBC; a API REST automática do Supabase (PostgREST) não é usada pelo jogo.
 
+**Segurança no Supabase:** a API REST automática expõe o schema `public` para qualquer um com a chave `anon` (que é pública). A migration `V6__enable_row_level_security.sql` liga o RLS em todas as tabelas sem nenhuma *policy*, o que bloqueia esse acesso; a API conecta como dona das tabelas e não é afetada. **Toda tabela nova precisa de um `ALTER TABLE … ENABLE ROW LEVEL SECURITY` na própria migration.** Se quiser fechar de vez, desligue a *Data API* em *Project Settings* → *Data API*.
+
 ## 2. Google (login com Google)
 
 No [Google Cloud Console](https://console.cloud.google.com/) → *APIs e serviços* → *Credenciais*:
