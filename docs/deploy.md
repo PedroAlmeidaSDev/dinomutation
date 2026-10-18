@@ -39,6 +39,12 @@ Não precisa criar tabelas: o Flyway roda as migrations (`server/src/main/resour
 
 **Segurança no Supabase:** a API REST automática expõe o schema `public` para qualquer um com a chave `anon` (que é pública). A migration `V6__enable_row_level_security.sql` liga o RLS em todas as tabelas sem nenhuma *policy*, o que bloqueia esse acesso; a API conecta como dona das tabelas e não é afetada. **Toda tabela nova precisa de um `ALTER TABLE … ENABLE ROW LEVEL SECURITY` na própria migration.** Se quiser fechar de vez, desligue a *Data API* em *Project Settings* → *Data API*.
 
+A tabela do Flyway fica de fora da migration (o Flyway trava essa tabela noutra conexão enquanto migra, e o `ALTER` esperaria para sempre). Depois que a API subir pela primeira vez, rode uma vez no *SQL Editor* do Supabase:
+
+```sql
+ALTER TABLE flyway_schema_history ENABLE ROW LEVEL SECURITY;
+```
+
 ## 2. Google (login com Google)
 
 No [Google Cloud Console](https://console.cloud.google.com/) → *APIs e serviços* → *Credenciais*:
