@@ -1,4 +1,4 @@
-# Hosts such as Render inject the port to listen on.
+# Hosts such as Railway inject the port to listen on.
 server:
   port: ${PORT:8080}
 

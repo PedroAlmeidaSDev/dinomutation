@@ -66,7 +66,7 @@ cd client && npm test          # chefe, modo infinito, save, paridade da economi
 
 ## Deploy
 
-Passo a passo para produção (Neon, Render, Google e Vercel) em [`docs/deploy.md`](docs/deploy.md). A API tem imagem Docker em `server/Dockerfile` (build a partir da raiz: `docker build -f server/Dockerfile .`).
+Passo a passo para produção (Supabase, Railway, Google e Vercel) em [`docs/deploy.md`](docs/deploy.md). A API tem imagem Docker em `server/Dockerfile` (build a partir da raiz: `docker build -f server/Dockerfile .`).
 
 Antes do merge na `main`: o jogo importa `shared/economy.json`, que fica fora de `client/`. No projeto da Vercel, defina o **Root Directory** como `client` e ative **Include files outside the Root Directory in the Build Step**.
 
