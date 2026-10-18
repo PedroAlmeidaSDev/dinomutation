@@ -1,0 +1,34 @@
+{
+  "dinos": ["trex", "raptor", "triceratops"],
+  "fossils": { "perMinute": 15, "perKills": 60, "elite": 40, "boss": 120 },
+  "mastery": { "secondsPerXp": 4, "elite": 40, "boss": 100, "maxLevel": 10, "xpPerLevel": 100 },
+  "difficulties": [
+    { "id": "filhote", "fossilMult": 0.75, "firstWinBonus": 60 },
+    { "id": "normal", "fossilMult": 1, "firstWinBonus": 150 },
+    { "id": "predador", "fossilMult": 1.4, "firstWinBonus": 250 },
+    { "id": "extincao", "fossilMult": 1.8, "firstWinBonus": 400 }
+  ],
+  "shop": {
+    "trex": [
+      { "id": "meta_vida", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_dano", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_armadura", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_genes", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_trex_crit", "costs": [30, 70, 150, 300, 480] }
+    ],
+    "raptor": [
+      { "id": "meta_vida", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_dano", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_armadura", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_genes", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_raptor_claw", "costs": [30, 70, 150, 300, 480] }
+    ],
+    "triceratops": [
+      { "id": "meta_vida", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_dano", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_armadura", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_genes", "costs": [30, 70, 150, 300, 480] },
+      { "id": "meta_tri_horn", "costs": [30, 70, 150, 300, 480] }
+    ]
+  }
+}
