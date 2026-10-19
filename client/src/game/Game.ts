@@ -24,6 +24,9 @@ export function createGame(parent: string): Phaser.Game {
     },
     // Joystick + ability button held at the same time on touch screens.
     input: { activePointers: 3 },
+    // The right-click menu swallows the keyup of a held movement key (no window blur
+    // either), leaving it stuck down: the dino kept walking on its own.
+    disableContextMenu: true,
     render: { antialias: true, pixelArt: false },
     fps: { target: 60 },
     scene: [BootScene, MenuScene, LairScene, RankingScene, CharacterSelectScene, RunScene, HUDScene, GameOverScene, VictoryScene],
